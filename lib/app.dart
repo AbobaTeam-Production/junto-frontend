@@ -1,0 +1,34 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/theme/app_theme.dart';
+import 'core/router/app_router.dart';
+import 'core/providers/auth_provider.dart';
+
+class JuntoApp extends ConsumerStatefulWidget {
+  const JuntoApp({super.key});
+
+  @override
+  ConsumerState<JuntoApp> createState() => _JuntoAppState();
+}
+
+class _JuntoAppState extends ConsumerState<JuntoApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Try to restore session from saved tokens
+    Future.microtask(() {
+      ref.read(authStateProvider.notifier).tryRestoreSession();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final router = ref.watch(appRouterProvider);
+    return MaterialApp.router(
+      title: 'Junto',
+      theme: AppTheme.dark,
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
