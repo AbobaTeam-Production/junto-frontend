@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
+import '../api/server_config.dart';
 
 class AuthUser {
   final int id;
@@ -21,11 +22,16 @@ class AuthUser {
   bool get isGuest => username.startsWith('Гость_');
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
+    String? avatarUrl = json['avatar_url'] as String?;
+    // Resolve relative paths to full URLs
+    if (avatarUrl != null && avatarUrl.startsWith('/')) {
+      avatarUrl = '${ServerConfig.mediaBaseUrl}$avatarUrl';
+    }
     return AuthUser(
       id: json['id'] as int,
       username: json['username'] as String,
       email: json['email'] as String,
-      avatarUrl: json['avatar_url'] as String?,
+      avatarUrl: avatarUrl,
     );
   }
 }

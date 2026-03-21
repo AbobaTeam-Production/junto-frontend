@@ -95,6 +95,12 @@ Future<JoinRoomResult> joinRoom(WidgetRef ref, String inviteCode) async {
   );
 }
 
+Future<void> deleteRoom(WidgetRef ref, String roomId) async {
+  final dio = ref.read(dioProvider);
+  await dio.delete(ApiEndpoints.roomDetail(roomId));
+  ref.invalidate(myRoomsProvider);
+}
+
 final roomDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, roomId) async {
   final dio = ref.read(dioProvider);

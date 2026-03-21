@@ -26,6 +26,7 @@ class PlayerState {
   final String? sourceType; // 'upload', 'youtube'
   final String? title;
   final int? mediaProgress; // transcoding progress 0-100
+  final String? mediaId;
 
   const PlayerState({
     this.status = 'idle',
@@ -36,6 +37,7 @@ class PlayerState {
     this.sourceType,
     this.title,
     this.mediaProgress,
+    this.mediaId,
   });
 
   PlayerState copyWith({
@@ -47,6 +49,7 @@ class PlayerState {
     String? sourceType,
     String? title,
     int? mediaProgress,
+    String? mediaId,
   }) {
     return PlayerState(
       status: status ?? this.status,
@@ -57,6 +60,7 @@ class PlayerState {
       sourceType: sourceType ?? this.sourceType,
       title: title ?? this.title,
       mediaProgress: mediaProgress ?? this.mediaProgress,
+      mediaId: mediaId ?? this.mediaId,
     );
   }
 }
@@ -203,13 +207,39 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
           ),
         );
 
+      case 'online_users':
+        // Backend sends {userId: username}, frontend stores {username: userId}
+        final usersRaw = event['users'] as Map<String, dynamic>? ?? {};
+        final users = <String, String>{};
+        for (final entry in usersRaw.entries) {
+          users[entry.value.toString()] = entry.key;
+        }
+        state = state.copyWith(onlineUsers: users);
+
       case 'media_ready':
+        // Only auto-switch if nothing is currently playing
+        if (state.player.hlsUrl == null && state.player.youtubeVideoId == null) {
+          state = state.copyWith(
+            player: state.player.copyWith(
+              hlsUrl: event['hls_url'] as String?,
+              youtubeVideoId: event['youtube_video_id'] as String?,
+              sourceType: event['source_type'] as String? ?? 'upload',
+              title: event['title'] as String?,
+              mediaProgress: 100,
+              mediaId: event['media_id'] as String?,
+            ),
+          );
+        }
+
+      case 'play_media':
         state = state.copyWith(
-          player: state.player.copyWith(
+          player: PlayerState(
+            status: 'pause',
+            position: 0,
             hlsUrl: event['hls_url'] as String?,
-            youtubeVideoId: event['youtube_video_id'] as String?,
             sourceType: event['source_type'] as String? ?? 'upload',
             title: event['title'] as String?,
+            mediaId: event['media_id'] as String?,
             mediaProgress: 100,
           ),
         );
@@ -272,6 +302,21 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
       'event': 'seek',
       'position': position,
       'timestamp': DateTime.now().toUtc().toIso8601String(),
+    }));
+  }
+
+  void sendPlayMedia({
+    required String mediaId,
+    required String hlsUrl,
+    required String title,
+    String sourceType = 'upload',
+  }) {
+    _channel?.sink.add(jsonEncode({
+      'event': 'play_media',
+      'media_id': mediaId,
+      'hls_url': hlsUrl,
+      'title': title,
+      'source_type': sourceType,
     }));
   }
 

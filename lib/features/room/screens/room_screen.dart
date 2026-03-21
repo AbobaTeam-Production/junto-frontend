@@ -2,10 +2,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/utils/fullscreen_stub.dart'
+    if (dart.library.js_interop) '../../../core/utils/fullscreen_web.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:video_player/video_player.dart';
+import '../../../core/video/player_api.dart';
+import '../../../core/video/player_factory.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/api/server_config.dart';
@@ -14,6 +17,7 @@ import '../../../core/providers/voice_chat_provider.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/participant_list.dart';
+import '../widgets/queue_panel.dart';
 import '../widgets/reaction_overlay.dart';
 
 class RoomScreen extends ConsumerStatefulWidget {
@@ -28,13 +32,14 @@ class RoomScreen extends ConsumerStatefulWidget {
 class _RoomScreenState extends ConsumerState<RoomScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
-  VideoPlayerController? _videoController;
+  UnifiedVideoPlayer? _videoController;
   String? _currentHlsUrl;
   bool _isHost = false;
   bool _showControls = true;
   bool _videoEnded = false;
   bool _isFullscreen = false;
   bool _orientationFullscreen = false;
+  double _volume = 1.0;
   Timer? _hideControlsTimer;
   PlayerState? _lastAppliedPlayerState;
 
@@ -42,7 +47,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Force fresh fetch of room data (avoid stale cache from previous visit)
@@ -63,8 +68,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               }
             }
 
-            // Check if media is already ready from API
-            if (_currentHlsUrl == null) {
+            // Check if media is already ready from API (only if WS hasn't set a URL yet)
+            final wsHlsUrl = ref.read(roomWsProvider(widget.roomId)).player.hlsUrl;
+            if (_currentHlsUrl == null && wsHlsUrl == null) {
               final mediaList = data['media'] as List?;
               if (mediaList != null && mediaList.isNotEmpty) {
                 final media = mediaList.first as Map<String, dynamic>;
@@ -107,13 +113,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         },
       );
 
-      // Listen for media_ready and player sync events from WebSocket
+      // Listen for media_ready, play_media, and player sync events from WebSocket
       ref.listenManual(
         roomWsProvider(widget.roomId).select((s) => s.player),
         (previous, next) {
-          // Init video when media arrives via WS
-          if (_currentHlsUrl == null && next.hlsUrl != null) {
+          // Init video when media arrives via WS (first media or play_media switch)
+          if (next.hlsUrl != null && next.hlsUrl != _currentHlsUrl) {
             _initVideo(next.hlsUrl!);
+            return;
           }
 
           // Sync playback for non-host viewers
@@ -176,67 +183,102 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 
   void _enterFullscreen({bool fromOrientation = false}) {
-    setState(() {
-      _isFullscreen = true;
-      _orientationFullscreen = fromOrientation;
-    });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    if (!fromOrientation) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    }
+    _toggleFullscreen(true, fromOrientation: fromOrientation);
   }
 
   void _exitFullscreen() {
+    _toggleFullscreen(false);
+  }
+
+  void _toggleFullscreen(bool enter, {bool fromOrientation = false}) {
+    final wasPlaying = _videoController?.isPlaying ?? false;
+    final pos = _videoController?.position ?? Duration.zero;
+
     setState(() {
-      _isFullscreen = false;
-      _orientationFullscreen = false;
+      _isFullscreen = enter;
+      _orientationFullscreen = enter && fromOrientation;
     });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations([]);
+
+    if (kIsWeb) {
+      if (enter) {
+        enterBrowserFullscreen();
+      } else {
+        exitBrowserFullscreen();
+      }
+    } else {
+      if (enter) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        if (!fromOrientation) {
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+        }
+      } else {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+        SystemChrome.setPreferredOrientations([]);
+      }
+    }
+
+    // On web, the video element is re-attached to DOM during rebuild,
+    // which pauses it. Restore after a short delay.
+    if (wasPlaying) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted && _videoController != null) {
+          _videoController!.seekTo(pos);
+          _videoController!.play();
+        }
+      });
+    }
   }
 
   void _initVideo(String hlsUrl) {
     if (_currentHlsUrl == hlsUrl) return;
-    _createController(hlsUrl);
+    // Non-host: never autoPlay on init — _applyPlayerSync handles it after init
+    _createController(hlsUrl, autoPlay: _isHost);
   }
 
   void _createController(String hlsUrl, {Duration startAt = Duration.zero, bool autoPlay = false}) {
     _currentHlsUrl = hlsUrl;
     _videoEnded = false;
 
-    final fullUrl = hlsUrl.startsWith('http')
-        ? hlsUrl
-        : '${ServerConfig.mediaBaseUrl}$hlsUrl';
-
     _videoController?.dispose();
-    final controller = VideoPlayerController.networkUrl(Uri.parse(fullUrl));
+    final controller = createVideoPlayer();
     _videoController = controller;
 
     if (mounted) setState(() {});
 
-    controller.initialize().then((_) {
-      if (!mounted) return;
-      if (startAt > Duration.zero) controller.seekTo(startAt);
-      if (autoPlay) controller.play();
-      setState(() {});
-    }).catchError((e) {
-      debugPrint('Video init error: $e');
-    });
-
     controller.addListener(() {
       if (!mounted) return;
       setState(() {});
-      // Detect video end reliably via listener
-      final v = controller.value;
-      if (v.isInitialized &&
-          !v.isPlaying &&
-          v.duration > Duration.zero &&
-          v.position.inMilliseconds >= v.duration.inMilliseconds - 300) {
-        _videoEnded = true;
+      // Detect video end
+      if (controller.isInitialized &&
+          !controller.isPlaying &&
+          controller.duration > Duration.zero &&
+          controller.position.inMilliseconds >= controller.duration.inMilliseconds - 300) {
+        if (!_videoEnded) {
+          _videoEnded = true;
+          if (_isHost) _autoAdvanceToNext();
+        }
       }
+    });
+
+    controller.open(hlsUrl).then((_) {
+      if (!mounted) return;
+      controller.setVolume(_volume);
+      if (startAt > Duration.zero) controller.seekTo(startAt);
+      if (autoPlay) controller.play();
+      setState(() {});
+      // After init, force-sync non-host with current WS state
+      if (!_isHost) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          final ws = ref.read(roomWsProvider(widget.roomId)).player;
+          _applyPlayerSync(ws);
+        });
+      }
+    }).catchError((e) {
+      debugPrint('Video init error: $e');
     });
   }
 
@@ -245,24 +287,24 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final wsNotifier = ref.read(roomWsProvider(widget.roomId).notifier);
 
     final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.isInitialized) return;
 
-    if (controller.value.isPlaying) {
-      final position = controller.value.position.inMilliseconds / 1000.0;
+    if (controller.isPlaying) {
+      final position = controller.position.inMilliseconds / 1000.0;
       controller.pause();
       wsNotifier.sendPause(position);
     } else if (_videoEnded) {
       _createController(_currentHlsUrl!, autoPlay: true);
       late void Function() onReady;
       onReady = () {
-        if (_videoController?.value.isPlaying ?? false) {
+        if (_videoController?.isPlaying ?? false) {
           wsNotifier.sendPlay(0);
           _videoController?.removeListener(onReady);
         }
       };
       _videoController?.addListener(onReady);
     } else {
-      final position = controller.value.position.inMilliseconds / 1000.0;
+      final position = controller.position.inMilliseconds / 1000.0;
       controller.play();
       wsNotifier.sendPlay(position);
     }
@@ -273,17 +315,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final wsNotifier = ref.read(roomWsProvider(widget.roomId).notifier);
 
     final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.isInitialized) return;
 
-    final duration = controller.value.duration;
-    final position = duration * value;
+    final dur = controller.duration;
+    final position = Duration(milliseconds: (dur.inMilliseconds * value).toInt());
     final positionSec = position.inMilliseconds / 1000.0;
 
     if (_videoEnded) {
       _createController(_currentHlsUrl!, startAt: position, autoPlay: true);
       late void Function() onReady;
       onReady = () {
-        if (_videoController?.value.isPlaying ?? false) {
+        if (_videoController?.isPlaying ?? false) {
           wsNotifier.sendSeek(positionSec);
           wsNotifier.sendPlay(positionSec);
           _videoController?.removeListener(onReady);
@@ -301,7 +343,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final targetSec = playerState.position;
 
     final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) return;
+    if (controller == null || !controller.isInitialized) return;
 
     final targetPos = Duration(milliseconds: (targetSec * 1000).toInt());
     if (playerState.timestamp != null) {
@@ -311,11 +353,49 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       controller.seekTo(targetPos);
     }
 
-    if (playerState.status == 'play' && !controller.value.isPlaying) {
+    if (playerState.status == 'play' && !controller.isPlaying) {
       controller.play();
-    } else if (playerState.status == 'pause' && controller.value.isPlaying) {
+    } else if (playerState.status == 'pause' && controller.isPlaying) {
       controller.pause();
     }
+  }
+
+  void _autoAdvanceToNext() {
+    final roomData = ref.read(roomDetailProvider(widget.roomId)).valueOrNull;
+    if (roomData == null) return;
+
+    final mediaList = (roomData['media'] as List?) ?? [];
+    final currentUrl = _currentHlsUrl;
+
+    // Find current index
+    int currentIndex = -1;
+    for (var i = 0; i < mediaList.length; i++) {
+      final item = mediaList[i] as Map<String, dynamic>;
+      final hlsUrl = item['hls_url'] as String?;
+      if (hlsUrl != null && hlsUrl == currentUrl) {
+        currentIndex = i;
+        break;
+      }
+    }
+
+    // Find next ready item
+    for (var i = currentIndex + 1; i < mediaList.length; i++) {
+      final item = mediaList[i] as Map<String, dynamic>;
+      if (item['status'] == 'ready' && item['hls_url'] != null) {
+        ref.read(roomWsProvider(widget.roomId).notifier).sendPlayMedia(
+          mediaId: item['id'].toString(),
+          hlsUrl: item['hls_url'] as String,
+          title: item['title'] as String? ?? 'Без названия',
+          sourceType: item['source_type'] as String? ?? 'upload',
+        );
+        return;
+      }
+    }
+  }
+
+  void _playNext() {
+    if (!_isHost) return;
+    _autoAdvanceToNext();
   }
 
   void _copyInviteCode(String code) {
@@ -333,8 +413,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     // Fullscreen mode — just video + overlay
     if (_isFullscreen) {
       final fsController = _videoController;
-      final fsInitialized = fsController != null && fsController.value.isInitialized;
-      final fsPlaying = fsController?.value.isPlaying ?? false;
+      final fsInitialized = fsController != null && fsController.isInitialized;
+      final fsPlaying = fsController?.isPlaying ?? false;
       final voiceState = ref.watch(voiceChatProvider(widget.roomId));
       final isMicActive = voiceState.isActive && !voiceState.isMuted;
 
@@ -440,7 +520,39 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                                 size: 32,
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            // Next (host only)
+                            if (_isHost)
+                              IconButton(
+                                onPressed: _playNext,
+                                icon: const Icon(Icons.skip_next_rounded, color: Colors.white70),
+                              ),
+                            const SizedBox(width: 8),
+                            // Volume in fullscreen
+                            Icon(
+                              _volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                              size: 18, color: Colors.white54,
+                            ),
+                            SizedBox(
+                              width: 80,
+                              child: SliderTheme(
+                                data: SliderThemeData(
+                                  trackHeight: 2,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                  activeTrackColor: Colors.white70,
+                                  inactiveTrackColor: Colors.white24,
+                                  thumbColor: Colors.white,
+                                ),
+                                child: Slider(
+                                  value: _volume,
+                                  onChanged: (v) {
+                                    setState(() => _volume = v);
+                                    _videoController?.setVolume(v);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             // Reactions
                             IconButton(
                               onPressed: _showReactions,
@@ -477,10 +589,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           data: (data) => data['invite_code'] as String?,
         ) ??
         '------';
-    final memberCount = roomAsync.whenOrNull(
-          data: (data) => data['member_count'] as int?,
-        ) ??
-        0;
+    final onlineCount = wsState.onlineUsers.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -533,7 +642,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                     size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
-                  '$memberCount',
+                  '$onlineCount',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -574,6 +683,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             tabs: const [
               Tab(text: 'Чат'),
               Tab(text: 'Участники'),
+              Tab(text: 'Очередь'),
             ],
           ),
         ),
@@ -583,6 +693,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             children: [
               ChatPanel(roomId: widget.roomId),
               ParticipantList(roomId: widget.roomId),
+              QueuePanel(roomId: widget.roomId, isHost: _isHost),
             ],
           ),
         ),
@@ -626,6 +737,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                   tabs: const [
                     Tab(text: 'Чат'),
                     Tab(text: 'Участники'),
+                    Tab(text: 'Очередь'),
                   ],
                 ),
               ),
@@ -635,6 +747,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                   children: [
                     ChatPanel(roomId: widget.roomId),
                     ParticipantList(roomId: widget.roomId),
+                    QueuePanel(roomId: widget.roomId, isHost: _isHost),
                   ],
                 ),
               ),
@@ -647,16 +760,16 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
 
   Widget _buildFullscreenVideo() {
     final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) {
+    if (controller == null || !controller.isInitialized) {
       return const CircularProgressIndicator(color: AppColors.primary);
     }
     return SizedBox.expand(
       child: FittedBox(
         fit: BoxFit.contain,
         child: SizedBox(
-          width: controller.value.size.width,
-          height: controller.value.size.height,
-          child: VideoPlayer(controller),
+          width: controller.videoSize.width,
+          height: controller.videoSize.height,
+          child: controller.buildWidget(),
         ),
       ),
     );
@@ -666,13 +779,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final playerState = wsState.player;
     final controller = _videoController;
-    final isInitialized = controller != null && controller.value.isInitialized;
-    final isPlaying = controller?.value.isPlaying ?? false;
+    final isInitialized = controller != null && controller.isInitialized;
+    final isPlaying = controller?.isPlaying ?? false;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _toggleControls,
-      child: AspectRatio(
+    return AspectRatio(
         aspectRatio: 16 / 9,
         child: Container(
           color: Colors.black,
@@ -685,9 +795,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                   child: FittedBox(
                     fit: BoxFit.contain,
                     child: SizedBox(
-                      width: controller.value.size.width,
-                      height: controller.value.size.height,
-                      child: VideoPlayer(controller),
+                      width: controller.videoSize.width,
+                      height: controller.videoSize.height,
+                      child: controller.buildWidget(),
                     ),
                   ),
                 )
@@ -703,6 +813,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                     ),
                   ),
                 ),
+
+              // Transparent tap zone over video (captures taps that platform view would swallow)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _toggleControls,
+                ),
+              ),
 
               // Transcoding progress
               if (!isInitialized && playerState.mediaProgress != null && playerState.mediaProgress! < 100)
@@ -732,7 +850,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                 ),
 
               // Loading spinner when media URL set but not yet initialized
-              if (!isInitialized && (playerState.hlsUrl != null || _currentHlsUrl != null) && (playerState.mediaProgress == null || playerState.mediaProgress == 100))
+              if (!isInitialized && (playerState.hlsUrl != null || _currentHlsUrl != null))
                 const CircularProgressIndicator(color: AppColors.primary),
 
               // Play/pause overlay
@@ -801,17 +919,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           ],
         ),
       ),
-    )).animate().fadeIn(duration: 400.ms);
+    ).animate().fadeIn(duration: 400.ms);
   }
 
-  Widget _buildSeekBar(VideoPlayerController? controller) {
+  Widget _buildSeekBar(UnifiedVideoPlayer? controller) {
     double progress = 0;
     int positionSec = 0;
     int durationSec = 0;
 
-    if (controller != null && controller.value.isInitialized) {
-      final duration = controller.value.duration;
-      final position = controller.value.position;
+    if (controller != null && controller.isInitialized) {
+      final duration = controller.duration;
+      final position = controller.position;
       progress = duration.inMilliseconds > 0
           ? position.inMilliseconds / duration.inMilliseconds
           : 0.0;
@@ -869,11 +987,67 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     }
   }
 
+  Widget _buildVolumeButton() {
+    return GestureDetector(
+      onTap: () {
+        // Toggle mute on tap
+        final newVol = _volume > 0 ? 0.0 : 1.0;
+        setState(() => _volume = newVol);
+        _videoController?.setVolume(newVol);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _volume == 0
+                  ? Icons.volume_off_rounded
+                  : _volume < 0.5
+                      ? Icons.volume_down_rounded
+                      : Icons.volume_up_rounded,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 56,
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                activeTrackColor: AppColors.primary,
+                inactiveTrackColor: AppColors.surfaceLight,
+                thumbColor: AppColors.primary,
+              ),
+              child: Slider(
+                value: _volume,
+                onChanged: (v) {
+                  setState(() => _volume = v);
+                  _videoController?.setVolume(v);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildControls() {
     final controller = _videoController;
-    final isPlaying = controller?.value.isPlaying ?? false;
+    final isPlaying = controller?.isPlaying ?? false;
     final voiceState = ref.watch(voiceChatProvider(widget.roomId));
     final isMicActive = voiceState.isActive && !voiceState.isMuted;
+    final hasVideo = controller != null && controller.isInitialized;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -886,7 +1060,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Mic toggle (tap = start/mute, long press = disconnect)
+          // Mic toggle
           _ControlButton(
             icon: isMicActive ? Icons.mic_rounded : Icons.mic_off_rounded,
             label: voiceState.isActive
@@ -928,7 +1102,25 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             onTap: _isHost ? _onPlayPause : null,
             isPrimary: true,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+
+          // Next (host only)
+          if (_isHost) ...[
+            _ControlButton(
+              icon: Icons.skip_next_rounded,
+              label: 'Далее',
+              isActive: false,
+              activeColor: AppColors.primary,
+              onTap: _playNext,
+            ),
+            const SizedBox(width: 12),
+          ],
+
+          // Volume (compact with mini slider)
+          if (hasVideo) ...[
+            _buildVolumeButton(),
+            const SizedBox(width: 12),
+          ],
 
           // Reactions
           _ControlButton(

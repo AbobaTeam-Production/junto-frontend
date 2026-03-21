@@ -63,6 +63,10 @@ final dioProvider = Provider<Dio>((ref) {
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
+      // Let Dio set Content-Type automatically for FormData (multipart)
+      if (options.data is FormData) {
+        options.headers.remove('Content-Type');
+      }
       handler.next(options);
     },
     onError: (error, handler) async {

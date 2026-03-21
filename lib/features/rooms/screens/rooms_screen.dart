@@ -8,6 +8,39 @@ import '../providers/room_providers.dart';
 class RoomsScreen extends ConsumerWidget {
   const RoomsScreen({super.key});
 
+  void _confirmDelete(BuildContext context, WidgetRef ref, RoomInfo room) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Удалить комнату?'),
+        content: Text('Комната ${room.inviteCode} будет закрыта.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await deleteRoom(ref, room.id);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Ошибка: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roomsAsync = ref.watch(myRoomsProvider);
@@ -44,8 +77,28 @@ class RoomsScreen extends ConsumerWidget {
               itemCount: rooms.length,
               itemBuilder: (context, index) {
                 final room = rooms[index];
-                return _RoomCard(room: room)
-                    .animate()
+                return Dismissible(
+                  key: ValueKey(room.id),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) async {
+                    _confirmDelete(context, ref, room);
+                    return false; // dialog handles deletion
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.delete_outline, color: AppColors.error),
+                  ),
+                  child: _RoomCard(
+                    room: room,
+                    onDelete: () => _confirmDelete(context, ref, room),
+                  ),
+                ).animate()
                     .fadeIn(duration: 400.ms, delay: (index * 80).ms)
                     .slideY(begin: 0.05, end: 0, duration: 400.ms);
               },
@@ -103,8 +156,9 @@ class RoomsScreen extends ConsumerWidget {
 
 class _RoomCard extends StatelessWidget {
   final RoomInfo room;
+  final VoidCallback? onDelete;
 
-  const _RoomCard({required this.room});
+  const _RoomCard({required this.room, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +170,7 @@ class _RoomCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => context.push('/room/${room.id}'),
+          onLongPress: onDelete,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
