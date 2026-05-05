@@ -9,6 +9,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../room/widgets/torrent_result_tile.dart';
 import '../../rooms/providers/room_providers.dart';
+import '../../../l10n/app_localizations.dart';
 
 const _kChunkSize = 5 * 1024 * 1024; // 5 MB
 
@@ -62,7 +63,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
 
     final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) {
-      throw Exception('Не удалось прочитать файл');
+      throw Exception(AppLocalizations.of(context).createRoomFileReadError);
     }
 
     final fileSize = bytes.length;
@@ -116,8 +117,9 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
       if (mounted) setState(() => _searchResults = list);
     } catch (e) {
       if (mounted) {
+        final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка поиска: $e')),
+          SnackBar(content: Text(l.createRoomSearchError(e.toString()))),
         );
       }
     } finally {
@@ -126,10 +128,11 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
   }
 
   Future<void> _selectTorrentAndCreate(Map<String, dynamic> item) async {
+    final l = AppLocalizations.of(context);
     final magnet = (item['magnet'] as String?)?.trim() ?? '';
     if (magnet.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('У результата нет magnet-ссылки')),
+        SnackBar(content: Text(l.createRoomMagnetError)),
       );
       return;
     }
@@ -156,23 +159,24 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
       if (mounted) {
         setState(() => _resolvingMagnet = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text(l.createRoomError(e.toString()))),
         );
       }
     }
   }
 
   Future<void> _createRoom() async {
+    final l = AppLocalizations.of(context);
     // Validate inputs
     if (_selectedSource == 'upload' && _pickedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите файл')),
+        SnackBar(content: Text(l.createRoomFileError)),
       );
       return;
     }
     if (_selectedSource != 'upload' && _urlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вставьте ссылку')),
+        SnackBar(content: Text(l.createRoomUrlError)),
       );
       return;
     }
@@ -214,7 +218,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text(l.createRoomError(e.toString()))),
         );
       }
     }
@@ -222,6 +226,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -250,7 +255,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
             const SizedBox(height: 20),
 
             Text(
-              'Создать комнату',
+              l.createRoomTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -259,7 +264,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
 
             // Source type selector
             Text(
-              'Источник контента',
+              l.createRoomSourceLabel,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -271,21 +276,21 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
               children: [
                 _SourceChip(
                   icon: Icons.upload_file_rounded,
-                  label: 'Файл',
+                  label: l.sourceFile,
                   selected: _selectedSource == 'upload',
                   onTap: () => setState(() => _selectedSource = 'upload'),
                 ),
                 const SizedBox(width: 10),
                 _SourceChip(
                   icon: Icons.link_rounded,
-                  label: 'Торрент',
+                  label: l.sourceTorrent,
                   selected: _selectedSource == 'torrent',
                   onTap: () => setState(() => _selectedSource = 'torrent'),
                 ),
                 const SizedBox(width: 10),
                 _SourceChip(
                   icon: Icons.play_arrow_rounded,
-                  label: 'Rutube',
+                  label: l.sourceRutube,
                   selected: _selectedSource == 'youtube',
                   onTap: () => setState(() => _selectedSource = 'youtube'),
                 ),
@@ -308,7 +313,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
                   child: _loading
                       ? const SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Создать'),
+                      : Text(l.createRoomButton),
                 ),
               ),
             ] else if (_selectedSource == 'torrent') ...[
@@ -318,7 +323,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _searchTorrents(),
                 decoration: InputDecoration(
-                  hintText: 'Название фильма или сериала',
+                  hintText: l.createRoomSearchHint,
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
                   suffixIcon: _searching
                       ? const Padding(
@@ -336,9 +341,9 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
               TextField(
                 controller: _urlController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'или вставьте magnet-ссылку',
-                  prefixIcon: Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
+                decoration: InputDecoration(
+                  hintText: l.createRoomMagnetHint,
+                  prefixIcon: const Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
                 ),
               ),
               if (_urlController.text.trim().isNotEmpty) ...[
@@ -350,7 +355,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
                     child: _loading
                         ? const SizedBox(width: 20, height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Создать по ссылке'),
+                        : Text(l.createRoomMagnetButton),
                   ),
                 ),
               ],
@@ -382,9 +387,9 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
               TextField(
                 controller: _urlController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Ссылка на Rutube',
-                  prefixIcon: Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
+                decoration: InputDecoration(
+                  hintText: l.createRoomRutubeHint,
+                  prefixIcon: const Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
                 ),
               ),
               const SizedBox(height: 28),
@@ -395,7 +400,7 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
                   child: _loading
                       ? const SizedBox(width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Создать'),
+                      : Text(l.createRoomButton),
                 ),
               ),
             ],
@@ -566,17 +571,17 @@ class _UploadArea extends StatelessWidget {
                         color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Нажмите для выбора файла',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).createRoomUploadHint,
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'MP4, MKV, AVI, MOV — до 10 ГБ',
-                    style: TextStyle(
+                    AppLocalizations.of(context).createRoomFileFormats,
+                    style: const TextStyle(
                       color: AppColors.textHint,
                       fontSize: 12,
                     ),

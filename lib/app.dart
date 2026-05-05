@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/settings_provider.dart';
+import 'l10n/app_localizations.dart';
 
 class JuntoApp extends ConsumerStatefulWidget {
   const JuntoApp({super.key});
@@ -24,11 +26,15 @@ class _JuntoAppState extends ConsumerState<JuntoApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
+    final locale = ref.watch(localeProvider);
     return MaterialApp.router(
       title: 'Junto',
       theme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
     );
   }
 }

@@ -6,17 +6,30 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/junto_primitives.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/settings_provider.dart';
 import '../widgets/edit_profile_sheet.dart';
+import '../widgets/language_picker_sheet.dart';
+import '../widgets/mic_picker_sheet.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final user = ref.watch(currentUserProvider);
+    final settings = ref.watch(settingsProvider);
     final isGuest = user == null || user.isGuest;
-    final displayName = isGuest ? 'Гость' : user.username;
-    final handle = isGuest ? '— · войдите' : '@${user.username.toLowerCase()}';
+    final displayName = isGuest ? l.profileGuestLabel : user.username;
+    final handle = isGuest ? l.profileGuestHandle : '@${user.username.toLowerCase()}';
+    final langCode = settings.locale?.languageCode ?? 'ru';
+    final langLabel = langCode == 'en' ? l.profileLanguageEn : l.profileLanguageRu;
+    final micLabel = settings.micDeviceId.isEmpty
+        ? l.profileMicrophoneDefault
+        // Display name resolution lives inside MicPickerSheet — for the
+        // subtitle we just hint that a custom device is in use.
+        : '•';
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -34,10 +47,10 @@ class ProfileScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const MonoLabel('Профиль',
+                        MonoLabel(l.profileLabel,
                             color: AppColors.ink3, letterSpacing: 1.8),
                         const SizedBox(height: 4),
-                        Text('Я',
+                        Text(l.profileTitle,
                             style: AppTheme.display(
                                 size: 32, weight: FontWeight.w600, letterSpacing: -0.8)),
                       ],
@@ -72,24 +85,46 @@ class ProfileScreen extends ConsumerWidget {
 
             // Settings section
             _SettingsSection(
-              title: 'Настройки',
+              title: l.profileSettingsTitle,
               children: [
-                _Row(icon: Icons.notifications_none_rounded, label: 'Уведомления', value: 'Вкл'),
-                _Row(icon: Icons.language_outlined, label: 'Язык', value: 'Русский'),
-                _Row(icon: Icons.mic_none_rounded, label: 'Микрофон', value: 'По умолч.'),
-                _Row(icon: Icons.movie_outlined, label: 'Качество видео', value: 'Авто', isLast: true),
+                // Notifications row is intentionally non-interactive on this
+                // build — Web Push / FCM is parked until we wire Firebase.
+                _Row(icon: Icons.notifications_none_rounded, label: l.profileNotifications, value: l.profileNotificationsOff),
+                _Row(
+                  icon: Icons.language_outlined,
+                  label: l.profileLanguage,
+                  value: langLabel,
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const LanguagePickerSheet(),
+                  ),
+                ),
+                _Row(
+                  icon: Icons.mic_none_rounded,
+                  label: l.profileMicrophone,
+                  value: micLabel,
+                  isLast: true,
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const MicPickerSheet(),
+                  ),
+                ),
               ],
             ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
 
             const SizedBox(height: 24),
 
             _SettingsSection(
-              title: 'О приложении',
+              title: l.profileAboutTitle,
               children: [
-                _Row(icon: Icons.info_outline_rounded, label: 'Версия', value: '1.0.0'),
+                _Row(icon: Icons.info_outline_rounded, label: l.profileVersion, value: '1.0.0'),
                 _Row(
                   icon: Icons.description_outlined,
-                  label: 'Лицензии',
+                  label: l.profileLicenses,
                   value: '',
                   onTap: () => showLicensePage(context: context),
                   isLast: true,
@@ -106,7 +141,7 @@ class ProfileScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => _exitGuestTo(context, ref, '/login'),
-                    child: const Text('Войти в аккаунт'),
+                    child: Text(l.profileLoginButton),
                   ),
                 ),
               ),
@@ -117,7 +152,7 @@ class ProfileScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () => _exitGuestTo(context, ref, '/register'),
-                    child: const Text('Зарегистрироваться'),
+                    child: Text(l.profileRegisterButton),
                   ),
                 ),
               ),
@@ -127,7 +162,7 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   _Row(
                     icon: Icons.logout_rounded,
-                    label: 'Выйти',
+                    label: l.profileLogout,
                     value: '',
                     danger: true,
                     isLast: true,
@@ -151,23 +186,24 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r2)),
-        title: Text('Выход', style: AppTheme.display(size: 18, weight: FontWeight.w600)),
-        content: Text('Вы уверены, что хотите выйти?',
+        title: Text(l.profileLogoutConfirmTitle, style: AppTheme.display(size: 18, weight: FontWeight.w600)),
+        content: Text(l.profileLogoutConfirmMessage,
             style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w400)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.profileLogoutCancel)),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(authStateProvider.notifier).logout();
               context.go('/login');
             },
-            child: const Text('Выйти', style: TextStyle(color: AppColors.danger)),
+            child: Text(l.profileLogoutConfirm, style: const TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -236,15 +272,18 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          Row(
-            children: const [
-              _Stat(value: '47', label: 'сеансов'),
-              SizedBox(width: 28),
-              _Stat(value: '128', label: 'часов'),
-              SizedBox(width: 28),
-              _Stat(value: '12', label: 'друзей'),
-            ],
-          ),
+          Builder(builder: (ctx) {
+            final l = AppLocalizations.of(ctx);
+            return Row(
+              children: [
+                _Stat(value: l.profileStatsPlaceholder, label: l.profileSessionsLabel),
+                const SizedBox(width: 28),
+                _Stat(value: l.profileStatsPlaceholder, label: l.profileHoursLabel),
+                const SizedBox(width: 28),
+                _Stat(value: l.profileStatsPlaceholder, label: l.profileFriendsLabel),
+              ],
+            );
+          }),
         ],
       ),
     );

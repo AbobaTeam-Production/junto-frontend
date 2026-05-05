@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/room_ws_provider.dart';
 import '../../rooms/providers/room_providers.dart';
 import 'add_media_sheet.dart';
+import '../../../l10n/app_localizations.dart';
 
 class QueuePanel extends ConsumerWidget {
   final String roomId;
@@ -13,14 +14,15 @@ class QueuePanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final roomAsync = ref.watch(roomDetailProvider(roomId));
     final wsState = ref.watch(roomWsProvider(roomId));
     final currentHlsUrl = wsState.player.hlsUrl;
 
     return roomAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const Center(
-        child: Text('Не удалось загрузить', style: TextStyle(color: AppColors.textSecondary)),
+      error: (_, __) => Center(
+        child: Text(l.queueLoadError, style: const TextStyle(color: AppColors.textSecondary)),
       ),
       data: (data) {
         final mediaList = (data['media'] as List?) ?? [];
@@ -35,7 +37,7 @@ class QueuePanel extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _showAddMedia(context),
                     icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Добавить в очередь'),
+                    label: Text(l.queueAddButton),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
@@ -46,11 +48,11 @@ class QueuePanel extends ConsumerWidget {
                 ),
               ),
             if (mediaList.isEmpty)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Очередь пуста',
-                    style: TextStyle(color: AppColors.textHint, fontSize: 14),
+                    l.queueEmpty,
+                    style: const TextStyle(color: AppColors.textHint, fontSize: 14),
                   ),
                 ),
               )
@@ -140,13 +142,13 @@ class QueuePanel extends ConsumerWidget {
                                       ),
                                       if (!isReady && !isError)
                                         Text(
-                                          'Обработка: $progress%',
+                                          l.queueProcessing(progress),
                                           style: const TextStyle(color: AppColors.textHint, fontSize: 11),
                                         ),
                                       if (isError)
-                                        const Text(
-                                          'Ошибка',
-                                          style: TextStyle(color: AppColors.error, fontSize: 11),
+                                        Text(
+                                          l.queueError,
+                                          style: const TextStyle(color: AppColors.error, fontSize: 11),
                                         ),
                                     ],
                                   ),

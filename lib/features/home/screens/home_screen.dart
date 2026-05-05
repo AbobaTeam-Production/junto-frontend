@@ -9,17 +9,19 @@ import '../../../core/widgets/junto_primitives.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../widgets/create_room_sheet.dart';
 import '../widgets/join_room_sheet.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final user = ref.watch(currentUserProvider);
     final firstName = user == null
         ? 'друг'
         : user.isGuest
-            ? 'Гость'
+            ? l.profileGuestLabel
             : user.username.split(' ').first;
     final now = TimeOfDay.now();
     final timeLabel =
@@ -65,9 +67,9 @@ class HomeScreen extends ConsumerWidget {
                 text: TextSpan(
                   style: AppTheme.display(size: 36, weight: FontWeight.w500, letterSpacing: -1.0, height: 1.05),
                   children: [
-                    TextSpan(text: 'Привет, $firstName.\n'),
+                    TextSpan(text: '${l.homeGreetingPrefix(firstName)}.\n'),
                     TextSpan(
-                      text: 'Что смотрим?',
+                      text: l.homeGreetingQuestion,
                       style: AppTheme.display(size: 36, weight: FontWeight.w500, color: AppColors.ink3, letterSpacing: -1.0, height: 1.05),
                     ),
                   ],
@@ -151,6 +153,7 @@ class _CreateRoomHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Material(
       color: AppColors.amber,
       borderRadius: BorderRadius.circular(AppTheme.r3),
@@ -168,10 +171,10 @@ class _CreateRoomHero extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MonoLabel('Новый сеанс',
+                    MonoLabel(l.homeCreateRoomLabel,
                         color: AppColors.amberInk.withValues(alpha: 0.65), letterSpacing: 2.0),
                     const SizedBox(height: 6),
-                    Text('Создать комнату',
+                    Text(l.homeCreateRoomTitle,
                         style: AppTheme.display(
                           size: 26, weight: FontWeight.w600, letterSpacing: -0.6, color: AppColors.amberInk, height: 1.1,
                         )),
@@ -179,7 +182,7 @@ class _CreateRoomHero extends StatelessWidget {
                     SizedBox(
                       width: 240,
                       child: Text(
-                        'Загрузите фильм или вставьте ссылку. Друзья присоединяются по коду.',
+                        l.homeCreateRoomDesc,
                         style: AppTheme.text(
                           size: 13,
                           color: AppColors.amberInk.withValues(alpha: 0.78),
@@ -201,7 +204,7 @@ class _CreateRoomHero extends StatelessWidget {
                           child: const Icon(Icons.add_rounded, color: AppColors.amber, size: 22),
                         ),
                         const SizedBox(width: 10),
-                        Text('Начать',
+                        Text(l.homeCreateRoomButton,
                             style: AppTheme.text(
                               size: 14, weight: FontWeight.w600, color: AppColors.amberInk,
                             )),
@@ -224,6 +227,7 @@ class _JoinByCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppTheme.r2),
@@ -252,10 +256,10 @@ class _JoinByCodeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Войти по коду',
+                    Text(l.homeJoinCodeLabel,
                         style: AppTheme.text(size: 15, weight: FontWeight.w600, color: AppColors.ink)),
                     const SizedBox(height: 2),
-                    Text('6 символов · от друга',
+                    Text(l.homeJoinCodeHint,
                         style: AppTheme.text(size: 12, color: AppColors.ink3, weight: FontWeight.w400)),
                   ],
                 ),
@@ -287,6 +291,7 @@ class _LiveRoomsRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final liveRooms = roomsAsync.maybeWhen(
       data: (rooms) => rooms.where((r) => r.isActive).toList(),
       orElse: () => <RoomInfo>[],
@@ -298,7 +303,7 @@ class _LiveRoomsRail extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
             children: [
-              const MonoLabel('Сейчас смотрят друзья', color: AppColors.ink3, letterSpacing: 1.8),
+              MonoLabel(l.homeLiveRoomsLabel, color: AppColors.ink3, letterSpacing: 1.8),
               const Spacer(),
               Text('${liveRooms.length}',
                   style: AppTheme.text(size: 12, color: AppColors.ink3, weight: FontWeight.w400)),
@@ -328,6 +333,7 @@ class _LiveRoomsRail extends StatelessWidget {
   }
 
   Widget _emptyRail(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -342,9 +348,9 @@ class _LiveRoomsRail extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const MonoLabel('Тихо', color: AppColors.ink4, letterSpacing: 2.0),
+            MonoLabel(l.homeLiveRoomsEmpty, color: AppColors.ink4, letterSpacing: 2.0),
             const SizedBox(height: 8),
-            Text('Никто не смотрит сейчас.\nСоздай комнату — позови друзей.',
+            Text(l.homeLiveRoomsEmptyDesc,
                 style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w400)),
           ],
         ),
@@ -361,6 +367,7 @@ class _LiveRoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return SizedBox(
       width: 200,
       child: Material(
@@ -402,7 +409,7 @@ class _LiveRoomCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Комната ${room.inviteCode}',
+                  '${l.homeRoomLabel} ${room.inviteCode}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTheme.text(size: 14, weight: FontWeight.w600, color: AppColors.ink),
@@ -414,7 +421,7 @@ class _LiveRoomCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        '${room.hostName} · ${room.memberCount} в комнате',
+                        '${room.hostName} · ${room.memberCount} ${l.homeRoomMembers}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTheme.text(size: 12, color: AppColors.ink3, weight: FontWeight.w400),

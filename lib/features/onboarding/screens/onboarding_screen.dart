@@ -6,6 +6,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/junto_primitives.dart';
+import '../../../l10n/app_localizations.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,27 +19,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   int _currentPage = 0;
 
-  static const _pages = [
+  List<_PageData> _buildPages(AppLocalizations l) => [
     _PageData(
       tag: '01 — Together',
-      titleStart: 'Кино — это\nповод ',
-      titleAccent: 'встретиться.',
-      subtitle:
-          'Junto собирает друзей в одной комнате — синхронный плеер, голос без эха, реакции в реальном времени.',
+      title: l.onboardingPage1Title,
+      subtitle: l.onboardingPage1Subtitle,
     ),
     _PageData(
       tag: '02 — Any source',
-      titleStart: 'Файл, торрент\nили ',
-      titleAccent: 'Rutube.',
-      subtitle:
-          'Загружайте локальный файл, добавляйте магнет-ссылку или вставляйте URL — Junto синхронизирует поток.',
+      title: l.onboardingPage2Title,
+      subtitle: l.onboardingPage2Subtitle,
     ),
     _PageData(
       tag: '03 — Voice',
-      titleStart: 'Голос без\nэха и ',
-      titleAccent: 'наушников.',
-      subtitle:
-          'Голосовой чат с подавлением эхо: можно говорить через колонки, никто не услышит свой голос обратно.',
+      title: l.onboardingPage3Title,
+      subtitle: l.onboardingPage3Subtitle,
     ),
   ];
 
@@ -53,8 +48,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     context.go('/login');
   }
 
-  void _next() {
-    if (_currentPage < _pages.length - 1) {
+  void _next(int pagesLength) {
+    if (_currentPage < pagesLength - 1) {
       _controller.nextPage(duration: 450.ms, curve: Curves.easeOutCubic);
     } else {
       _finish();
@@ -63,7 +58,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _currentPage == _pages.length - 1;
+    final l = AppLocalizations.of(context);
+    final pages = _buildPages(l);
+    final isLast = _currentPage == pages.length - 1;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -87,7 +84,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         foregroundColor: AppColors.ink3,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       ),
-                      child: const Text('Пропустить'),
+                      child: Text(l.onboardingSkipButton),
                     ),
                   ),
                 ),
@@ -96,10 +93,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _controller,
-                    itemCount: _pages.length,
+                    itemCount: pages.length,
                     onPageChanged: (i) => setState(() => _currentPage = i),
                     itemBuilder: (context, index) =>
-                        _OnboardingPage(data: _pages[index]),
+                        _OnboardingPage(data: pages[index]),
                   ),
                 ),
 
@@ -115,7 +112,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         children: [
                           // Dots — current is a wide bar
                           Row(
-                            children: List.generate(_pages.length, (i) {
+                            children: List.generate(pages.length, (i) {
                               final on = i == _currentPage;
                               return AnimatedContainer(
                                 duration: 250.ms,
@@ -131,7 +128,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                           const Spacer(),
                           ElevatedButton(
-                            onPressed: _next,
+                            onPressed: () => _next(pages.length),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.fromLTRB(24, 14, 22, 14),
                               shape: const StadiumBorder(),
@@ -141,7 +138,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(isLast ? 'Начать' : 'Дальше',
+                                Text(isLast ? l.onboardingStartButton : l.onboardingNextButton,
                                     style: AppTheme.text(size: 15, weight: FontWeight.w600, color: AppColors.amberInk)),
                                 const SizedBox(width: 8),
                                 const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.amberInk),
@@ -178,13 +175,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 class _PageData {
   final String tag;
-  final String titleStart;
-  final String titleAccent;
+  final String title;
   final String subtitle;
   const _PageData({
     required this.tag,
-    required this.titleStart,
-    required this.titleAccent,
+    required this.title,
     required this.subtitle,
   });
 }
@@ -230,23 +225,14 @@ class _OnboardingPage extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          // Headline (Manrope display, italic accent in amber)
-          RichText(
-            text: TextSpan(
-              style: AppTheme.display(size: 42, weight: FontWeight.w600, letterSpacing: -1.4, height: 1.04),
-              children: [
-                TextSpan(text: data.titleStart),
-                TextSpan(
-                  text: data.titleAccent,
-                  style: AppTheme.display(
-                    size: 42,
-                    weight: FontWeight.w500,
-                    color: AppColors.amber,
-                    letterSpacing: -1.4,
-                    height: 1.04,
-                  ).copyWith(fontStyle: FontStyle.italic),
-                ),
-              ],
+          // Headline (Manrope display)
+          Text(
+            data.title,
+            style: AppTheme.display(
+              size: 42,
+              weight: FontWeight.w600,
+              letterSpacing: -1.4,
+              height: 1.04,
             ),
           )
               .animate()

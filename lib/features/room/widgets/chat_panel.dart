@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
 import '../../rooms/providers/room_providers.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ChatPanel extends ConsumerStatefulWidget {
   final String roomId;
@@ -61,10 +62,11 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final messages = wsState.messages;
     final currentUser = ref.watch(currentUserProvider);
-    final myName = currentUser?.username ?? 'Гость';
+    final myName = currentUser?.username ?? l.profileGuestLabel;
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
     final avatarMap = _buildAvatarMap(roomAsync);
 
@@ -89,8 +91,8 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                           size: 40, color: AppColors.textHint),
                       const SizedBox(height: 8),
                       Text(
-                        'Пока нет сообщений',
-                        style: TextStyle(color: AppColors.textHint),
+                        l.chatEmpty,
+                        style: const TextStyle(color: AppColors.textHint),
                       ),
                     ],
                   ),
@@ -130,7 +132,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   style: const TextStyle(
                       color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Сообщение...',
+                    hintText: l.chatPlaceholder,
                     hintStyle: const TextStyle(fontSize: 14),
                     filled: true,
                     fillColor: AppColors.surfaceLight,
@@ -176,6 +178,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
   }
 
   Widget _buildMessage(ChatMessage msg, bool isMe, String? avatarUrl) {
+    final l = AppLocalizations.of(context);
     final color = isMe ? AppColors.success : _colorForName(msg.username);
 
     return Padding(
@@ -210,7 +213,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                 Row(
                   children: [
                     Text(
-                      isMe ? 'Вы' : msg.username,
+                      isMe ? l.chatYouLabel : msg.username,
                       style: TextStyle(
                         color: color,
                         fontWeight: FontWeight.w600,

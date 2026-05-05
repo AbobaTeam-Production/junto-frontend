@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -26,9 +27,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    final l = AppLocalizations.of(context);
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
+        SnackBar(content: Text(l.loginEmptyFieldsError)),
       );
       return;
     }
@@ -43,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         final error = ref.read(authStateProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Ошибка входа')),
+          SnackBar(content: Text(error ?? l.loginErrorDefault)),
         );
       }
     } finally {
@@ -52,13 +54,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _continueAsGuest() async {
+    final l = AppLocalizations.of(context);
     try {
       await ref.read(authStateProvider.notifier).loginAsGuest();
       if (mounted) context.go('/home');
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось войти как гость')),
+          SnackBar(content: Text(l.loginGuestError)),
         );
       }
     }
@@ -66,6 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -112,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Смотрите вместе',
+                    l.loginSubtitle,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -124,9 +128,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     controller: _emailController,
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Имя пользователя',
-                      prefixIcon: Icon(Icons.person_outline,
+                    decoration: InputDecoration(
+                      hintText: l.loginUsernameHint,
+                      prefixIcon: const Icon(Icons.person_outline,
                           color: AppColors.textHint, size: 20),
                     ),
                   ),
@@ -140,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onSubmitted: (_) => _login(),
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Пароль',
+                      hintText: l.loginPasswordHint,
                       prefixIcon: const Icon(Icons.lock_outline,
                           color: AppColors.textHint, size: 20),
                       suffixIcon: IconButton(
@@ -172,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Войти'),
+                          : Text(l.loginButton),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -181,14 +185,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Wrap(
                     alignment: WrapAlignment.center,
                     children: [
-                      const Text(
-                        'Нет аккаунта? ',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      Text(
+                        '${l.loginNoAccount} ',
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                       GestureDetector(
                         onTap: () => context.push('/register'),
-                        child: const Text(
-                          'Создать',
+                        child: Text(
+                          l.loginCreateAccount,
                           style: TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
@@ -207,8 +211,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'или',
-                          style: TextStyle(color: AppColors.textHint),
+                          l.loginDivider,
+                          style: const TextStyle(color: AppColors.textHint),
                         ),
                       ),
                       const Expanded(
@@ -223,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _continueAsGuest,
                       icon: const Icon(Icons.person_outline, size: 20),
-                      label: const Text('Войти как гость'),
+                      label: Text(l.loginGuestButton),
                     ),
                   ),
                 ],

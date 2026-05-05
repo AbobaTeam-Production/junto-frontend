@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../rooms/providers/room_providers.dart';
+import '../../../l10n/app_localizations.dart';
 
 class JoinRoomSheet extends ConsumerStatefulWidget {
   const JoinRoomSheet({super.key});
@@ -24,10 +25,11 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
   }
 
   Future<void> _joinRoom() async {
+    final l = AppLocalizations.of(context);
     final code = _codeController.text.trim().toUpperCase();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Код должен содержать 6 символов')),
+        SnackBar(content: Text(l.joinRoomCodeError)),
       );
       return;
     }
@@ -44,7 +46,7 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось присоединиться к комнате')),
+          SnackBar(content: Text(l.joinRoomError)),
         );
       }
     }
@@ -52,6 +54,7 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -80,14 +83,14 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
             const SizedBox(height: 20),
 
             Text(
-              'Присоединиться',
+              l.joinRoomTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Введите 6-значный код приглашения',
+              l.joinRoomHint,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -154,7 +157,7 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Войти в комнату'),
+                    : Text(l.joinRoomButton),
               ),
             ),
             const SizedBox(height: 8),

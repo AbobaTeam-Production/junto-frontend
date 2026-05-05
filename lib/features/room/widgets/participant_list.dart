@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
 import '../../rooms/providers/room_providers.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ParticipantList extends ConsumerWidget {
   final String roomId;
@@ -12,6 +13,7 @@ class ParticipantList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final roomAsync = ref.watch(roomDetailProvider(roomId));
     final onlineUsers = ref.watch(
       roomWsProvider(roomId).select((s) => s.onlineUsers),
@@ -20,9 +22,9 @@ class ParticipantList extends ConsumerWidget {
 
     return roomAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => const Center(
-        child: Text('Не удалось загрузить',
-            style: TextStyle(color: AppColors.textHint)),
+      error: (_, _) => Center(
+        child: Text(l.participantLoadError,
+            style: const TextStyle(color: AppColors.textHint)),
       ),
       data: (roomData) {
         final members = (roomData['members'] as List?) ?? [];
@@ -44,7 +46,7 @@ class ParticipantList extends ConsumerWidget {
             final isOnline = onlineUsers.containsKey(username);
 
             return _ParticipantTile(
-              name: isMe ? 'Вы' : username,
+              name: isMe ? l.chatYouLabel : username,
               avatarUrl: avatarUrl,
               isHost: isHost,
               isOnline: isOnline,
@@ -88,6 +90,7 @@ class _ParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -159,9 +162,9 @@ class _ParticipantTile extends StatelessWidget {
                           color: AppColors.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'Хост',
-                          style: TextStyle(
+                        child: Text(
+                          l.participantHostLabel,
+                          style: const TextStyle(
                             color: AppColors.warning,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -173,7 +176,7 @@ class _ParticipantTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isHost ? 'Управляет плеером' : 'Зритель',
+                  isHost ? l.participantHostRole : l.participantViewerRole,
                   style: const TextStyle(
                     color: AppColors.textHint,
                     fontSize: 12,

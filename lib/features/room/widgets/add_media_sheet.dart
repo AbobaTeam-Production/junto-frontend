@@ -7,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../rooms/providers/room_providers.dart';
 import 'torrent_result_tile.dart';
+import '../../../l10n/app_localizations.dart';
 
 const _kChunkSize = 5 * 1024 * 1024;
 
@@ -62,7 +63,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
 
     final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) {
-      throw Exception('Не удалось прочитать файл');
+      throw Exception(AppLocalizations.of(context).addMediaFileReadError);
     }
 
     final fileSize = bytes.length;
@@ -110,8 +111,9 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
       if (mounted) setState(() => _searchResults = list);
     } catch (e) {
       if (mounted) {
+        final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка поиска: $e')),
+          SnackBar(content: Text(l.addMediaSearchError(e.toString()))),
         );
       }
     } finally {
@@ -120,10 +122,11 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
   }
 
   Future<void> _selectTorrent(Map<String, dynamic> item) async {
+    final l = AppLocalizations.of(context);
     final magnet = (item['magnet'] as String?)?.trim() ?? '';
     if (magnet.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('У результата нет magnet-ссылки')),
+        SnackBar(content: Text(l.addMediaMagnetError)),
       );
       return;
     }
@@ -143,22 +146,23 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
       if (mounted) {
         setState(() => _resolvingMagnet = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text(l.addMediaError(e.toString()))),
         );
       }
     }
   }
 
   Future<void> _addMedia() async {
+    final l = AppLocalizations.of(context);
     if (_selectedSource == 'upload' && _pickedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите файл')),
+        SnackBar(content: Text(l.addMediaFileError)),
       );
       return;
     }
     if (_selectedSource != 'upload' && _urlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Вставьте ссылку')),
+        SnackBar(content: Text(l.addMediaUrlError)),
       );
       return;
     }
@@ -191,7 +195,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text(l.addMediaError(e.toString()))),
         );
       }
     }
@@ -199,6 +203,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -224,14 +229,14 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Добавить в очередь',
+              l.addMediaTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              'Источник',
+              l.addMediaSourceLabel,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -240,11 +245,11 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildChip(Icons.upload_file_rounded, 'Файл', 'upload'),
+                _buildChip(Icons.upload_file_rounded, l.sourceFile, 'upload'),
                 const SizedBox(width: 10),
-                _buildChip(Icons.link_rounded, 'Торрент', 'torrent'),
+                _buildChip(Icons.link_rounded, l.sourceTorrent, 'torrent'),
                 const SizedBox(width: 10),
-                _buildChip(Icons.play_arrow_rounded, 'Rutube', 'youtube'),
+                _buildChip(Icons.play_arrow_rounded, l.sourceRutube, 'youtube'),
               ],
             ),
             const SizedBox(height: 24),
@@ -287,12 +292,12 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
                             ],
                           ],
                         )
-                      : const Column(
+                      : Column(
                           children: [
-                            Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 24),
-                            SizedBox(height: 8),
-                            Text('Нажмите для выбора файла',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                            const Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 24),
+                            const SizedBox(height: 8),
+                            Text(l.addMediaUploadHint,
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                           ],
                         ),
                 ),
@@ -307,7 +312,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
                           width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Добавить'),
+                      : Text(l.addMediaButton),
                 ),
               ),
             ] else if (_selectedSource == 'torrent') ...[
@@ -318,7 +323,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _searchTorrents(),
                 decoration: InputDecoration(
-                  hintText: 'Название фильма или сериала',
+                  hintText: l.addMediaSearchHint,
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
                   suffixIcon: _searching
                       ? const Padding(
@@ -337,9 +342,9 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
               TextField(
                 controller: _urlController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'или вставьте magnet-ссылку',
-                  prefixIcon: Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
+                decoration: InputDecoration(
+                  hintText: l.addMediaMagnetHint,
+                  prefixIcon: const Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
                 ),
               ),
               if (_urlController.text.trim().isNotEmpty) ...[
@@ -351,7 +356,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
                     child: _loading
                         ? const SizedBox(width: 20, height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Добавить по ссылке'),
+                        : Text(l.addMediaMagnetButton),
                   ),
                 ),
               ],
@@ -384,9 +389,9 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
               TextField(
                 controller: _urlController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Ссылка на Rutube',
-                  prefixIcon: Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
+                decoration: InputDecoration(
+                  hintText: l.addMediaRutubeHint,
+                  prefixIcon: const Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
                 ),
               ),
               const SizedBox(height: 28),
@@ -399,7 +404,7 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
                           width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Добавить'),
+                      : Text(l.addMediaButton),
                 ),
               ),
             ],

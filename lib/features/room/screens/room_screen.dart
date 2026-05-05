@@ -24,6 +24,7 @@ import '../widgets/chat_panel.dart';
 import '../widgets/participant_list.dart';
 import '../widgets/queue_panel.dart';
 import '../widgets/reaction_overlay.dart';
+import '../../../l10n/app_localizations.dart';
 
 class RoomScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -54,12 +55,36 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   double _volume = 1.0;
   Timer? _hideControlsTimer;
   PlayerState? _lastAppliedPlayerState;
+  void Function()? _disposeFsListener;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 3, vsync: this);
+
+    // Keep Flutter state in sync when the browser exits fullscreen by
+    // itself (Esc, alt-tab, OS toggle). Without this our `_isFullscreen`
+    // flag stays true and the UI gets stuck in the fullscreen layout
+    // while the document is back to normal — buttons covered, etc.
+    if (kIsWeb) {
+      _disposeFsListener = onBrowserFullscreenChange((inFs) {
+        if (!mounted) return;
+        if (!inFs && _isFullscreen) {
+          // Re-parenting the <video> element back to the windowed layout
+          // makes Chrome auto-pause the MediaSource. The DOM mutation +
+          // pause happen *after* Flutter's rebuild, so a single
+          // post-frame play() lands too early. Retry on a short ladder
+          // until the element is actually playing again.
+          final wasPlaying = _videoController?.isPlaying ?? false;
+          setState(() {
+            _isFullscreen = false;
+            _orientationFullscreen = false;
+          });
+          if (wasPlaying) _resumeAfterFullscreenExit();
+        }
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Force fresh fetch of room data (avoid stale cache from previous visit)
@@ -158,6 +183,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _disposeFsListener?.call();
     _hideControlsTimer?.cancel();
     _tabController.dispose();
     _videoController?.dispose();
@@ -179,6 +205,26 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       _hideControlsTimer = Timer(const Duration(seconds: 4), () {
         if (mounted && _showControls) {
           setState(() => _showControls = false);
+        }
+      });
+    }
+  }
+
+  void _resumeAfterFullscreenExit() {
+    // Schedule resume attempts at 50/200/600 ms — covers fast and slow
+    // Esc/Alt-Tab transitions in Chrome/Firefox. Stop as soon as the
+    // controller reports it's playing again.
+    for (final ms in const [50, 200, 600]) {
+      Future.delayed(Duration(milliseconds: ms), () {
+        if (!mounted) return;
+        final c = _videoController;
+        if (c == null || c.isPlaying) return;
+        if (_isHost) {
+          // Host is the play-state source of truth; broadcast via WS so
+          // everyone keeps watching together.
+          _onPlayPause();
+        } else {
+          c.play();
         }
       });
     }
@@ -357,6 +403,44 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   /// honor the gesture; otherwise the guest would play from 0:00 while
   /// the host is e.g. 30 min in, and no further state change ever
   /// triggers a re-sync.
+  // Global keyboard shortcuts for the room: Space toggles play/pause,
+  // ←/→ seek by 15s. Wrapped in a Focus(autofocus: true) so events only
+  // arrive when no TextField has focus — typing in chat keeps working.
+  KeyEventResult _handleKey(FocusNode _, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.space) {
+      if (_isHost) {
+        _onPlayPause();
+      } else {
+        _localTogglePlayback();
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      _seekBy(key == LogicalKeyboardKey.arrowRight ? 15 : -15);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _seekBy(int seconds) {
+    final c = _videoController;
+    if (c == null || (!c.isInitialized && !_videoOpened)) return;
+    final dur = c.duration;
+    final target = c.position + Duration(seconds: seconds);
+    final clamped = target < Duration.zero
+        ? Duration.zero
+        : (dur > Duration.zero && target > dur ? dur : target);
+    c.seekTo(clamped);
+    if (_isHost) {
+      ref
+          .read(roomWsProvider(widget.roomId).notifier)
+          .sendSeek(clamped.inMilliseconds / 1000.0);
+    }
+  }
+
   void _localTogglePlayback() {
     final c = _videoController;
     // ignore: avoid_print
@@ -550,9 +634,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   void _copyInviteCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Код скопирован'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).roomCodeCopied),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -573,7 +657,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _exitFullscreen();
         },
-        child: Scaffold(
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: _handleKey,
+          child: Scaffold(
           backgroundColor: Colors.black,
           body: Stack(
             children: [
@@ -727,6 +814,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             ],
           ),
         ),
+        ),
       );
     }
 
@@ -735,13 +823,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final playerState = wsState.player;
     final isWide = MediaQuery.of(context).size.width > 800;
 
+    final l = AppLocalizations.of(context);
     final inviteCode = roomAsync.whenOrNull(
           data: (data) => data['invite_code'] as String?,
         ) ??
         '------';
     final onlineCount = wsState.onlineUsers.length;
 
-    return Scaffold(
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _handleKey,
+      child: Scaffold(
       backgroundColor: AppColors.bgDeep,
       body: SafeArea(
         bottom: false,
@@ -749,7 +841,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           children: [
             _buildTopBar(
               context,
-              title: playerState.title ?? 'Комната',
+              title: playerState.title ?? l.homeRoomLabel,
               inviteCode: inviteCode,
               onlineCount: onlineCount,
             ),
@@ -758,6 +850,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -768,6 +861,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     required String inviteCode,
     required int onlineCount,
   }) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 8, 14, 8),
       child: Row(
@@ -810,14 +904,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text('LIVE',
+                    Text(l.roomLiveLabel,
                         style: AppTheme.mono(
                             size: 9,
                             color: AppColors.live,
                             letterSpacing: 1.6,
                             weight: FontWeight.w600)),
                     const SizedBox(width: 6),
-                    Text('· $onlineCount в эфире',
+                    Text('· $onlineCount ${l.roomOnlineCount}',
                         style: AppTheme.mono(
                             size: 9,
                             color: AppColors.ink3,
@@ -919,6 +1013,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 
   Widget _buildPresenceRow() {
+    final l = AppLocalizations.of(context);
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
     final currentUser = ref.watch(currentUserProvider);
@@ -954,7 +1049,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MonoLabel(
-                'В комнате · ${online.length} из ${members.length}',
+                '${l.roomPresenceLabel} · ${online.length} / ${members.length}',
                 color: AppColors.ink3,
                 letterSpacing: 1.8,
               ),
@@ -1021,12 +1116,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         border: Border.all(color: AppColors.hairline),
       ),
       alignment: Alignment.centerLeft,
-      child: Text('Ещё никого нет — пригласи по коду.',
+      child: Text(AppLocalizations.of(context).roomEmptySeats,
           style: AppTheme.text(size: 12, color: AppColors.ink3, weight: FontWeight.w400)),
     );
   }
 
   Widget _buildTabStrip() {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: TabBar(
@@ -1045,10 +1141,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         labelPadding: const EdgeInsets.symmetric(horizontal: 14),
         tabAlignment: TabAlignment.start,
         isScrollable: true,
-        tabs: const [
-          Tab(text: 'Чат'),
-          Tab(text: 'Участники'),
-          Tab(text: 'Очередь'),
+        tabs: [
+          Tab(text: l.roomTabChat),
+          Tab(text: l.roomTabParticipants),
+          Tab(text: l.roomTabQueue),
         ],
       ),
     );
@@ -1113,15 +1209,22 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     if (controller == null || (!controller.isInitialized && !_videoOpened)) {
       return const CircularProgressIndicator(color: AppColors.primary);
     }
-    return SizedBox.expand(
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: AspectRatio(
-          aspectRatio: controller.videoSize.width > 0 &&
-                  controller.videoSize.height > 0
-              ? controller.videoSize.width / controller.videoSize.height
-              : 16 / 9,
-          child: controller.buildWidget(),
+    final w = controller.videoSize.width;
+    final h = controller.videoSize.height;
+    final ratio = (w > 0 && h > 0) ? w / h : 16 / 9;
+    // FittedBox+AspectRatio worked for media_kit (Texture has intrinsic
+    // size) but collapses HtmlElementView (no intrinsics) to zero. Center
+    // + AspectRatio fills the largest aspect-correct rect inside the
+    // full-screen stack, and Positioned.fill keeps the platform view
+    // tied to that rect on both web and native.
+    return Center(
+      child: AspectRatio(
+        aspectRatio: ratio,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(child: controller.buildWidget()),
+          ],
         ),
       ),
     );
@@ -1192,7 +1295,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                     const CircularProgressIndicator(color: AppColors.primary),
                     const SizedBox(height: 12),
                     Text(
-                      'Обработка видео: ${playerState.mediaProgress}%',
+                      AppLocalizations.of(context).roomVideoProcessing(playerState.mediaProgress!),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
@@ -1210,7 +1313,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                   _currentHlsUrl == null &&
                   playerState.mediaProgress == null)
                 Text(
-                  'Ожидание контента...',
+                  AppLocalizations.of(context).roomVideoWaiting,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 14,
@@ -1400,6 +1503,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     // Room-side controls only: voice/speaker/reactions. Video transport
     // controls (play/pause/next/seek/volume) live INSIDE the player overlay
     // so the bar stays uncluttered on narrow phones.
+    final l = AppLocalizations.of(context);
     final voiceState = ref.watch(voiceChatProvider(widget.roomId));
     final isMicActive = voiceState.isActive && !voiceState.isMuted;
 
@@ -1418,8 +1522,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           _ControlButton(
             icon: isMicActive ? Icons.mic_rounded : Icons.mic_off_rounded,
             label: voiceState.isActive
-                ? (voiceState.isMuted ? 'Вкл. микрофон' : 'Микрофон')
-                : 'Голос. чат',
+                ? (voiceState.isMuted ? l.roomMicEnableLabel : l.roomMicActiveLabel)
+                : l.roomMicLabel,
             isActive: isMicActive,
             activeColor: AppColors.success,
             onTap: _onMicTap,
@@ -1438,7 +1542,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               icon: voiceState.speakerOn
                   ? Icons.volume_up_rounded
                   : Icons.hearing_rounded,
-              label: voiceState.speakerOn ? 'Динамик' : 'Разговорный',
+              label: voiceState.speakerOn ? l.roomSpeakerLabel : l.roomSpeakerAltLabel,
               isActive: voiceState.speakerOn,
               activeColor: AppColors.primary,
               onTap: () => ref
@@ -1451,7 +1555,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           // Reactions
           _ControlButton(
             icon: Icons.emoji_emotions_outlined,
-            label: 'Реакция',
+            label: l.roomReactionsLabel,
             isActive: false,
             activeColor: AppColors.warning,
             onTap: _showReactions,
@@ -1462,26 +1566,27 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 
   void _showLeaveDialog(BuildContext context) {
+    final l = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Покинуть комнату?'),
-        content: const Text('Вы уверены, что хотите выйти из комнаты?'),
+        title: Text(l.roomLeaveTitle),
+        content: Text(l.roomLeaveMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Остаться'),
+            child: Text(l.roomLeaveCancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               context.go('/home');
             },
-            child: const Text(
-              'Выйти',
-              style: TextStyle(color: AppColors.error),
+            child: Text(
+              l.roomLeaveConfirm,
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -1514,7 +1619,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Реакции',
+              AppLocalizations.of(context).roomReactionsTitle,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),

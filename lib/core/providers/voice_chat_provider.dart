@@ -5,6 +5,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
+import 'settings_provider.dart';
 
 class VoiceChatState {
   final bool isActive;
@@ -52,12 +53,18 @@ class VoiceChatNotifier extends StateNotifier<VoiceChatState> {
       : _ref = ref,
         super(const VoiceChatState());
 
-  static const _audioCaptureOptions = lk.AudioCaptureOptions(
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
-    highPassFilter: true,
-  );
+  /// Build capture options that honour the user's saved mic-device pick
+  /// (`settingsProvider.micDeviceId`). Empty string = OS default.
+  lk.AudioCaptureOptions _buildAudioCaptureOptions() {
+    final id = _ref.read(settingsProvider).micDeviceId;
+    return lk.AudioCaptureOptions(
+      deviceId: id.isEmpty ? null : id,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      highPassFilter: true,
+    );
+  }
 
   Future<void> start() async {
     if (state.isActive || _starting) return;
@@ -96,11 +103,12 @@ class VoiceChatNotifier extends StateNotifier<VoiceChatState> {
       return;
     }
 
+    final captureOpts = _buildAudioCaptureOptions();
     final room = lk.Room(
-      roomOptions: const lk.RoomOptions(
+      roomOptions: lk.RoomOptions(
         adaptiveStream: false,
         dynacast: false,
-        defaultAudioCaptureOptions: _audioCaptureOptions,
+        defaultAudioCaptureOptions: captureOpts,
       ),
     );
     _room = room;
@@ -113,7 +121,7 @@ class VoiceChatNotifier extends StateNotifier<VoiceChatState> {
       print('JUNTO: voice.start() connected to LiveKit');
       await room.localParticipant?.setMicrophoneEnabled(
         true,
-        audioCaptureOptions: _audioCaptureOptions,
+        audioCaptureOptions: captureOpts,
       );
       // ignore: avoid_print
       print('JUNTO: voice.start() mic enabled');
@@ -152,7 +160,8 @@ class VoiceChatNotifier extends StateNotifier<VoiceChatState> {
     final lp = _room?.localParticipant;
     if (lp == null) return;
     final next = !state.isMuted;
-    await lp.setMicrophoneEnabled(!next, audioCaptureOptions: _audioCaptureOptions);
+    await lp.setMicrophoneEnabled(!next,
+        audioCaptureOptions: _buildAudioCaptureOptions());
     if (mounted) state = state.copyWith(isMuted: next);
   }
 

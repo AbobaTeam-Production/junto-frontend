@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/junto_primitives.dart';
 import '../../home/widgets/create_room_sheet.dart';
 import '../providers/room_providers.dart';
+import '../../../l10n/app_localizations.dart';
 
 class RoomsScreen extends ConsumerStatefulWidget {
   const RoomsScreen({super.key});
@@ -15,23 +16,38 @@ class RoomsScreen extends ConsumerStatefulWidget {
   ConsumerState<RoomsScreen> createState() => _RoomsScreenState();
 }
 
+enum _RoomsFilter { all, active, mine, archive }
+
 class _RoomsScreenState extends ConsumerState<RoomsScreen> {
-  String _filter = 'Все';
-  static const _filters = ['Все', 'Идут', 'Мои', 'Архив'];
+  _RoomsFilter _filter = _RoomsFilter.all;
+
+  String _filterLabel(_RoomsFilter f, AppLocalizations l) {
+    switch (f) {
+      case _RoomsFilter.all:
+        return l.roomsFilterAll;
+      case _RoomsFilter.active:
+        return l.roomsFilterActive;
+      case _RoomsFilter.mine:
+        return l.roomsFilterMine;
+      case _RoomsFilter.archive:
+        return l.roomsFilterArchive;
+    }
+  }
 
   void _confirmDelete(BuildContext context, RoomInfo room) {
+    final l = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r2)),
-        title: Text('Удалить комнату?', style: AppTheme.display(size: 18, weight: FontWeight.w600)),
-        content: Text('Комната ${room.inviteCode} будет закрыта.',
+        title: Text(l.roomsDeleteTitle, style: AppTheme.display(size: 18, weight: FontWeight.w600)),
+        content: Text(l.roomsDeleteMessage(room.inviteCode),
             style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w400)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
+            child: Text(l.roomsDeleteCancel),
           ),
           TextButton(
             onPressed: () async {
@@ -41,12 +57,12 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Ошибка: $e')),
+                    SnackBar(content: Text(l.roomsDeleteError(e.toString()))),
                   );
                 }
               }
             },
-            child: const Text('Удалить', style: TextStyle(color: AppColors.danger)),
+            child: Text(l.roomsDeleteConfirm, style: const TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -64,20 +80,21 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
 
   List<RoomInfo> _applyFilter(List<RoomInfo> rooms) {
     switch (_filter) {
-      case 'Идут':
+      case _RoomsFilter.active:
         return rooms.where((r) => r.isActive).toList();
-      case 'Архив':
+      case _RoomsFilter.archive:
         return rooms.where((r) => !r.isActive).toList();
-      case 'Мои':
-      case 'Все':
-      default:
+      case _RoomsFilter.mine:
+      case _RoomsFilter.all:
         return rooms;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final roomsAsync = ref.watch(myRoomsProvider);
+    const filters = _RoomsFilter.values;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -97,15 +114,15 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                       children: [
                         roomsAsync.maybeWhen(
                           data: (rooms) => MonoLabel(
-                            '${rooms.length.toString().padLeft(2, '0')} / комнат',
+                            '${rooms.length.toString().padLeft(2, '0')} / ${l.roomsCountLabel}',
                             color: AppColors.ink3,
                             letterSpacing: 1.8,
                           ),
-                          orElse: () => const MonoLabel('00 / комнат',
+                          orElse: () => MonoLabel('00 / ${l.roomsCountLabel}',
                               color: AppColors.ink3, letterSpacing: 1.8),
                         ),
                         const SizedBox(height: 4),
-                        Text('Комнаты',
+                        Text(l.roomsTitle,
                             style: AppTheme.display(
                                 size: 32, weight: FontWeight.w600, letterSpacing: -0.8)),
                       ],
@@ -124,10 +141,10 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: _filters.length,
+                itemCount: filters.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (ctx, i) {
-                  final f = _filters[i];
+                  final f = filters[i];
                   final on = f == _filter;
                   return GestureDetector(
                     onTap: () => setState(() => _filter = f),
@@ -142,7 +159,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                         ),
                       ),
                       child: Text(
-                        f,
+                        _filterLabel(f, l),
                         style: AppTheme.text(
                           size: 12,
                           weight: FontWeight.w500,
@@ -237,6 +254,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   }
 
   Widget _emptyState() {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -255,10 +273,10 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   color: AppColors.ink3, size: 36),
             ),
             const SizedBox(height: 20),
-            Text('Нет активных комнат',
+            Text(l.roomsEmptyState,
                 style: AppTheme.display(size: 18, weight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Text('Создайте комнату или присоединитесь\nпо коду приглашения',
+            Text(l.roomsEmptyDesc,
                 textAlign: TextAlign.center,
                 style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w400, height: 1.4)),
           ],
@@ -289,7 +307,7 @@ class _NewRoomPill extends StatelessWidget {
               children: [
                 const Icon(Icons.add_rounded, color: AppColors.amberInk, size: 18),
                 const SizedBox(width: 4),
-                Text('Новая',
+                Text(AppLocalizations.of(context).roomsNewButton,
                     style: AppTheme.text(
                       size: 13,
                       weight: FontWeight.w600,
@@ -323,6 +341,7 @@ class _RoomRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return InkWell(
       onTap: onTap,
       onLongPress: onDelete,
@@ -361,7 +380,7 @@ class _RoomRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Комната ${room.inviteCode}',
+                    '${l.homeRoomLabel} ${room.inviteCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTheme.text(size: 15, weight: FontWeight.w600, color: AppColors.ink),
@@ -373,7 +392,7 @@ class _RoomRow extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          '${room.hostName} · ${room.memberCount} в эфире',
+                          '${room.hostName} · ${room.memberCount} ${l.roomsOnline}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTheme.text(
@@ -398,16 +417,17 @@ class _ErrorBlock extends StatelessWidget {
   const _ErrorBlock({required this.onRetry});
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.ink3),
           const SizedBox(height: 12),
-          Text('Не удалось загрузить комнаты',
+          Text(l.roomsLoadError,
               style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w500)),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Повторить')),
+          TextButton(onPressed: onRetry, child: Text(l.roomsLoadRetry)),
         ],
       ),
     );

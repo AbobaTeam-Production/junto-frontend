@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ShellScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   const ShellScreen({super.key, required this.navigationShell});
 
-  static const _items = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Сейчас'),
-    _NavItem(icon: Icons.live_tv_outlined, activeIcon: Icons.live_tv_rounded, label: 'Комнаты'),
-    _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Я'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final items = [
+      _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: l.navHome),
+      _NavItem(icon: Icons.live_tv_outlined, activeIcon: Icons.live_tv_rounded, label: l.navRooms),
+      _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: l.navProfile),
+    ];
     final current = navigationShell.currentIndex;
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -31,8 +32,8 @@ class ShellScreen extends StatelessWidget {
           ),
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 14),
           child: Row(
-            children: List.generate(_items.length, (i) {
-              final item = _items[i];
+            children: List.generate(items.length, (i) {
+              final item = items[i];
               final selected = i == current;
               return Expanded(
                 child: InkResponse(
@@ -76,5 +77,5 @@ class _NavItem {
   final IconData icon;
   final IconData activeIcon;
   final String label;
-  const _NavItem({required this.icon, required this.activeIcon, required this.label});
+  _NavItem({required this.icon, required this.activeIcon, required this.label});
 }

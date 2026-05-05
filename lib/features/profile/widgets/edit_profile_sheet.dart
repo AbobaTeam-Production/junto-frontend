@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class EditProfileSheet extends ConsumerStatefulWidget {
   const EditProfileSheet({super.key});
@@ -54,12 +55,13 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
 
     if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Имя пользователя не может быть пустым')),
+        SnackBar(content: Text(l.editProfileEmptyError)),
       );
       return;
     }
@@ -78,7 +80,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text(l.editProfileError(e.toString()))),
         );
       }
     }
@@ -86,6 +88,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     final user = ref.watch(currentUserProvider);
     final initial =
@@ -117,7 +120,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
             const SizedBox(height: 20),
 
             Text(
-              'Редактировать профиль',
+              l.editProfileTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -191,7 +194,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
             // Username
             Text(
-              'Имя пользователя',
+              l.editProfileUsername,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -202,9 +205,9 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
             TextField(
               controller: _usernameController,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Имя пользователя',
-                prefixIcon: Icon(Icons.person_outline_rounded,
+              decoration: InputDecoration(
+                hintText: l.editProfileUsername,
+                prefixIcon: const Icon(Icons.person_outline_rounded,
                     color: AppColors.textHint, size: 20),
               ),
             ),
@@ -212,7 +215,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
 
             // Email
             Text(
-              'Email',
+              l.editProfileEmail,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
@@ -246,7 +249,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Сохранить'),
+                    : Text(l.editProfileSaveButton),
               ),
             ),
             const SizedBox(height: 8),

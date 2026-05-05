@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -30,17 +31,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _register() async {
+    final l = AppLocalizations.of(context);
     if (_usernameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
+        SnackBar(content: Text(l.registerEmptyFieldsError)),
       );
       return;
     }
     if (_passwordController.text != _confirmController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пароли не совпадают')),
+        SnackBar(content: Text(l.registerPasswordMismatch)),
       );
       return;
     }
@@ -57,7 +59,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) {
         final error = ref.read(authStateProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error ?? 'Ошибка регистрации')),
+          SnackBar(content: Text(error ?? l.registerErrorDefault)),
         );
       }
     } finally {
@@ -67,6 +69,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -84,7 +87,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Создать аккаунт',
+                    l.registerTitle,
                     style:
                         Theme.of(context).textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w800,
@@ -92,7 +95,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Присоединяйтесь к совместным просмотрам',
+                    l.registerSubtitle,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -104,9 +107,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _usernameController,
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Имя пользователя',
-                      prefixIcon: Icon(Icons.person_outline,
+                    decoration: InputDecoration(
+                      hintText: l.registerUsernameHint,
+                      prefixIcon: const Icon(Icons.person_outline,
                           color: AppColors.textHint, size: 20),
                     ),
                   ),
@@ -118,9 +121,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined,
+                    decoration: InputDecoration(
+                      hintText: l.registerEmailHint,
+                      prefixIcon: const Icon(Icons.email_outlined,
                           color: AppColors.textHint, size: 20),
                     ),
                   ),
@@ -133,7 +136,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     textInputAction: TextInputAction.next,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Пароль',
+                      hintText: l.registerPasswordHint,
                       prefixIcon: const Icon(Icons.lock_outline,
                           color: AppColors.textHint, size: 20),
                       suffixIcon: IconButton(
@@ -158,9 +161,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _register(),
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Повторите пароль',
-                      prefixIcon: Icon(Icons.lock_outline,
+                    decoration: InputDecoration(
+                      hintText: l.registerConfirmHint,
+                      prefixIcon: const Icon(Icons.lock_outline,
                           color: AppColors.textHint, size: 20),
                     ),
                   ),
@@ -180,7 +183,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Зарегистрироваться'),
+                          : Text(l.registerButton),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -189,15 +192,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Уже есть аккаунт? ',
-                        style: TextStyle(color: AppColors.textSecondary),
+                      Text(
+                        '${l.registerHasAccount} ',
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                       GestureDetector(
                         onTap: () => context.pop(),
-                        child: const Text(
-                          'Войти',
-                          style: TextStyle(
+                        child: Text(
+                          l.registerLoginLink,
+                          style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
