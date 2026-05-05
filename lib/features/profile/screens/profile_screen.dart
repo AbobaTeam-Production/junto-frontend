@@ -12,11 +12,29 @@ import '../widgets/language_picker_sheet.dart';
 import '../widgets/mic_picker_sheet.dart';
 import '../../../l10n/app_localizations.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Re-pull the profile every time the screen opens so the watch-time
+    // and session-count stats reflect the most recent disconnect. The
+    // current user already lives in `authStateProvider`, so we just kick
+    // an /auth/profile/ refresh to update those denormalised counters.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(authStateProvider.notifier).refreshProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final user = ref.watch(currentUserProvider);
     final settings = ref.watch(settingsProvider);
@@ -70,6 +88,8 @@ class ProfileScreen extends ConsumerWidget {
                 name: displayName,
                 handle: handle,
                 isGuest: isGuest,
+                sessionsCount: user?.sessionsCount ?? 0,
+                watchHours: user?.watchHours ?? 0,
                 onEdit: isGuest
                     ? null
                     : () => showModalBottomSheet(
@@ -215,12 +235,16 @@ class _ProfileCard extends StatelessWidget {
   final String name;
   final String handle;
   final bool isGuest;
+  final int sessionsCount;
+  final int watchHours;
   final VoidCallback? onEdit;
 
   const _ProfileCard({
     required this.name,
     required this.handle,
     required this.isGuest,
+    required this.sessionsCount,
+    required this.watchHours,
     this.onEdit,
   });
 
@@ -274,11 +298,13 @@ class _ProfileCard extends StatelessWidget {
           const SizedBox(height: 22),
           Builder(builder: (ctx) {
             final l = AppLocalizations.of(ctx);
+            // Friends count stays as a placeholder until Phase C lands the
+            // friendship model + endpoints.
             return Row(
               children: [
-                _Stat(value: l.profileStatsPlaceholder, label: l.profileSessionsLabel),
+                _Stat(value: '$sessionsCount', label: l.profileSessionsLabel),
                 const SizedBox(width: 28),
-                _Stat(value: l.profileStatsPlaceholder, label: l.profileHoursLabel),
+                _Stat(value: '$watchHours', label: l.profileHoursLabel),
                 const SizedBox(width: 28),
                 _Stat(value: l.profileStatsPlaceholder, label: l.profileFriendsLabel),
               ],

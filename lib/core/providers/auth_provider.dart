@@ -11,15 +11,24 @@ class AuthUser {
   final String username;
   final String email;
   final String? avatarUrl;
+  final int sessionsCount;
+  final int watchSeconds;
 
   const AuthUser({
     required this.id,
     required this.username,
     required this.email,
     this.avatarUrl,
+    this.sessionsCount = 0,
+    this.watchSeconds = 0,
   });
 
   bool get isGuest => username.startsWith('Гость_');
+
+  /// Display value for the "hours watched" stat: floor of watch_seconds / 3600,
+  /// so a 12-minute session shows 0 (not yet noteworthy) and an hour-and-a-half
+  /// session shows 1.
+  int get watchHours => watchSeconds ~/ 3600;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     String? avatarUrl = json['avatar_url'] as String?;
@@ -32,6 +41,8 @@ class AuthUser {
       username: json['username'] as String,
       email: json['email'] as String,
       avatarUrl: avatarUrl,
+      sessionsCount: (json['sessions_count'] as num?)?.toInt() ?? 0,
+      watchSeconds: (json['watch_seconds'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -159,6 +170,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final message = _extractError(e);
       state = state.copyWith(error: message);
       rethrow;
+    }
+  }
+
+  /// Re-fetch /auth/profile/ to pick up server-side stat changes
+  /// (sessions_count / watch_seconds). Called when entering the profile
+  /// screen so the user sees up-to-date numbers without re-logging.
+  Future<void> refreshProfile() async {
+    if (state.status != AuthStatus.authenticated) return;
+    try {
+      final response = await _dio.get(ApiEndpoints.profile);
+      final user = AuthUser.fromJson(response.data);
+      state = state.copyWith(user: user);
+    } catch (_) {
+      // Silent — stats just won't update this round.
     }
   }
 
