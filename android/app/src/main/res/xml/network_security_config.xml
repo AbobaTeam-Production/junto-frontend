@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Trust the bundled mkcert root globally. The cert is your own
+         developer root in the dev build; for production it should be
+         removed or replaced with a real cert in the trust store. -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="@raw/mkcert_root" />
         </trust-anchors>
     </base-config>
 </network-security-config>

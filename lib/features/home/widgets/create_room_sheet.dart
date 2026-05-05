@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../room/widgets/torrent_result_tile.dart';
 import '../../rooms/providers/room_providers.dart';
 
 const _kChunkSize = 5 * 1024 * 1024; // 5 MB
@@ -21,13 +22,26 @@ class CreateRoomSheet extends ConsumerStatefulWidget {
 class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
   String _selectedSource = 'upload';
   final _urlController = TextEditingController();
+  final _searchController = TextEditingController();
   bool _loading = false;
   PlatformFile? _pickedFile;
   double _uploadProgress = 0;
 
+  // Torrent search state
+  bool _searching = false;
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _resolvingMagnet = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlController.addListener(() => setState(() {}));
+  }
+
   @override
   void dispose() {
     _urlController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -75,6 +89,75 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
 
       if (mounted) {
         setState(() => _uploadProgress = (i + 1) / totalChunks);
+      }
+    }
+  }
+
+  Future<void> _searchTorrents() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _searching = true;
+      _searchResults = [];
+    });
+
+    try {
+      final dio = ref.read(dioProvider);
+      // Build URL manually: Dio's queryParameters has been observed to
+      // emit CP1251-encoded bytes for Cyrillic on Flutter Web. Uri.encodeQueryComponent
+      // is guaranteed UTF-8.
+      final resp = await dio.get(
+        '${ApiEndpoints.torrentSearch}?q=${Uri.encodeQueryComponent(query)}',
+      );
+      final list = (resp.data as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      if (mounted) setState(() => _searchResults = list);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка поиска: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _selectTorrentAndCreate(Map<String, dynamic> item) async {
+    final magnet = (item['magnet'] as String?)?.trim() ?? '';
+    if (magnet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('У результата нет magnet-ссылки')),
+      );
+      return;
+    }
+
+    setState(() => _resolvingMagnet = true);
+
+    try {
+      final dio = ref.read(dioProvider);
+
+      final result = await createRoom(ref);
+      final roomId = result.roomId;
+
+      await dio.post(ApiEndpoints.mediaTorrent, data: {
+        'room_id': roomId,
+        'magnet_link': magnet,
+      });
+
+      ref.invalidate(myRoomsProvider);
+      if (mounted) {
+        Navigator.of(context).pop();
+        context.push('/room/$roomId');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _resolvingMagnet = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
       }
     }
   }
@@ -217,49 +300,112 @@ class _CreateRoomSheetState extends ConsumerState<CreateRoomSheet> {
                 onTap: _loading ? null : _pickFile,
                 uploadProgress: _loading ? _uploadProgress : null,
               ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _createRoom,
+                  child: _loading
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Создать'),
+                ),
+              ),
+            ] else if (_selectedSource == 'torrent') ...[
+              TextField(
+                controller: _searchController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _searchTorrents(),
+                decoration: InputDecoration(
+                  hintText: 'Название фильма или сериала',
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                  suffixIcon: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                          onPressed: _searchTorrents,
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _urlController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'или вставьте magnet-ссылку',
+                  prefixIcon: Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
+                ),
+              ),
+              if (_urlController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _createRoom,
+                    child: _loading
+                        ? const SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Создать по ссылке'),
+                  ),
+                ),
+              ],
+              if (_searchResults.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                if (_resolvingMagnet)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  ))
+                else
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _searchResults.length,
+                      separatorBuilder: (_, __) => const Divider(color: AppColors.divider, height: 1),
+                      itemBuilder: (context, index) {
+                        final r = _searchResults[index];
+                        return TorrentResultTile(
+                          result: r,
+                          onTap: () => _selectTorrentAndCreate(r),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ] else ...[
               TextField(
                 controller: _urlController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: _selectedSource == 'torrent'
-                      ? 'magnet:// или ссылка на .torrent'
-                      : 'Ссылка на Rutube',
-                  prefixIcon: Icon(
-                    _selectedSource == 'torrent'
-                        ? Icons.link_rounded
-                        : Icons.play_arrow_rounded,
-                    color: AppColors.textHint,
-                    size: 20,
-                  ),
+                decoration: const InputDecoration(
+                  hintText: 'Ссылка на Rutube',
+                  prefixIcon: Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _createRoom,
+                  child: _loading
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Создать'),
                 ),
               ),
             ],
-            const SizedBox(height: 28),
-
-            // Create button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _createRoom,
-                child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Создать'),
-              ),
-            ),
             const SizedBox(height: 8),
           ],
         ).animate().fadeIn(duration: 300.ms),
       ),
     );
   }
+
 }
 
 class _SourceChip extends StatelessWidget {

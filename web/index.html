@@ -32,17 +32,10 @@
   <title>junto</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- HLS.js for HLS video playback in Chrome/Firefox -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-  <!-- Disable pointer events on video platform views so Flutter overlays receive taps -->
-  <style>
-    video,
-    flt-platform-view,
-    flt-platform-view video {
-      pointer-events: none !important;
-    }
-  </style>
+  <!-- hls.js — Chrome/Firefox/Edge desktop have no native HLS, and
+       lib/core/video/player_web.dart wires it directly to a video tag.
+       Hosted locally to avoid CDN/QUIC flakiness. -->
+  <script src="hls.js"></script>
 </head>
 <body>
   <!--

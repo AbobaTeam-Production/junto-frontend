@@ -3,6 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/junto_primitives.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../widgets/edit_profile_sheet.dart';
 
@@ -13,299 +15,139 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final isGuest = user == null || user.isGuest;
+    final displayName = isGuest ? 'Гость' : user.username;
+    final handle = isGuest ? '— · войдите' : '@${user.username.toLowerCase()}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
           children: [
-            // Avatar + info
-            _buildHeader(context, user)
-                .animate()
-                .fadeIn(duration: 400.ms)
-                .slideY(begin: 0.03, end: 0),
-            const SizedBox(height: 32),
+            // Header — mono "Профиль" + display "Я" + settings icon
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const MonoLabel('Профиль',
+                            color: AppColors.ink3, letterSpacing: 1.8),
+                        const SizedBox(height: 4),
+                        Text('Я',
+                            style: AppTheme.display(
+                                size: 32, weight: FontWeight.w600, letterSpacing: -0.8)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.tune_rounded, size: 22, color: AppColors.ink2),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Profile card with stats
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _ProfileCard(
+                name: displayName,
+                handle: handle,
+                isGuest: isGuest,
+                onEdit: isGuest
+                    ? null
+                    : () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const EditProfileSheet(),
+                        ),
+              ),
+            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.04, end: 0),
+
+            const SizedBox(height: 24),
 
             // Settings section
-            _buildSection(
-              context,
+            _SettingsSection(
               title: 'Настройки',
               children: [
-                _SettingsTile(
-                  icon: Icons.notifications_outlined,
-                  title: 'Уведомления',
-                  trailing: Switch.adaptive(
-                    value: true,
-                    onChanged: (_) {},
-                    activeTrackColor: AppColors.primary,
-                  ),
-                ),
-                _SettingsTile(
-                  icon: Icons.dark_mode_outlined,
-                  title: 'Тёмная тема',
-                  trailing: Switch.adaptive(
-                    value: true,
-                    onChanged: null, // always dark for now
-                    activeTrackColor: AppColors.primary,
-                  ),
-                ),
-                _SettingsTile(
-                  icon: Icons.language_outlined,
-                  title: 'Язык',
-                  trailing: const Text(
-                    'Русский',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
+                _Row(icon: Icons.notifications_none_rounded, label: 'Уведомления', value: 'Вкл'),
+                _Row(icon: Icons.language_outlined, label: 'Язык', value: 'Русский'),
+                _Row(icon: Icons.mic_none_rounded, label: 'Микрофон', value: 'По умолч.'),
+                _Row(icon: Icons.movie_outlined, label: 'Качество видео', value: 'Авто', isLast: true),
               ],
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 100.ms)
-                .slideY(begin: 0.03, end: 0),
-            const SizedBox(height: 20),
+            ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
 
-            // About section
-            _buildSection(
-              context,
+            const SizedBox(height: 24),
+
+            _SettingsSection(
               title: 'О приложении',
               children: [
-                _SettingsTile(
-                  icon: Icons.info_outline,
-                  title: 'Версия',
-                  trailing: const Text(
-                    '1.0.0',
-                    style: TextStyle(
-                      color: AppColors.textHint,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                _SettingsTile(
+                _Row(icon: Icons.info_outline_rounded, label: 'Версия', value: '1.0.0'),
+                _Row(
                   icon: Icons.description_outlined,
-                  title: 'Лицензии',
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textHint, size: 20),
+                  label: 'Лицензии',
+                  value: '',
                   onTap: () => showLicensePage(context: context),
+                  isLast: true,
                 ),
               ],
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 200.ms)
-                .slideY(begin: 0.03, end: 0),
-            const SizedBox(height: 28),
+            ).animate().fadeIn(duration: 400.ms, delay: 140.ms),
 
-            // Guest: sign in / register buttons
+            const SizedBox(height: 24),
+
             if (isGuest) ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Войти в аккаунт'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _exitGuestTo(context, ref, '/login'),
+                    child: const Text('Войти в аккаунт'),
+                  ),
                 ),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 300.ms),
+              ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.go('/register'),
-                  child: const Text('Зарегистрироваться'),
-                ),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 350.ms),
-            ],
-
-            // Authenticated: logout button
-            if (!isGuest) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _showLogoutDialog(context, ref),
-                  icon: const Icon(
-                    Icons.logout_rounded,
-                    size: 18,
-                    color: AppColors.error,
-                  ),
-                  label: const Text('Выйти из аккаунта'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(
-                      color: AppColors.error.withValues(alpha: 0.3),
-                    ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _exitGuestTo(context, ref, '/register'),
+                    child: const Text('Зарегистрироваться'),
                   ),
                 ),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 300.ms),
-            ],
-
-            const SizedBox(height: 16),
+              ),
+            ] else
+              _SettingsSection(
+                title: '',
+                children: [
+                  _Row(
+                    icon: Icons.logout_rounded,
+                    label: 'Выйти',
+                    value: '',
+                    danger: true,
+                    isLast: true,
+                    onTap: () => _showLogoutDialog(context, ref),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, AuthUser? user) {
-    final isGuest = user == null || user.isGuest;
-
-    if (isGuest) {
-      return Column(
-        children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              size: 44,
-              color: AppColors.textHint,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Гость',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Войдите или зарегистрируйтесь,\nчтобы получить доступ ко всем функциям',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      );
-    }
-
-    final initial = user.username.isNotEmpty ? user.username[0].toUpperCase() : '?';
-
-    return Column(
-      children: [
-        // Avatar
-        if (user.avatarUrl != null)
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: CircleAvatar(
-              radius: 44,
-              backgroundImage: NetworkImage(user.avatarUrl!),
-            ),
-          )
-        else
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        const SizedBox(height: 16),
-        Text(
-          user.username,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          user.email,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 14),
-        // Edit profile button
-        TextButton.icon(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => const EditProfileSheet(),
-            );
-          },
-          icon: const Icon(Icons.edit_outlined, size: 16),
-          label: const Text('Редактировать'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(
-            title.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textHint,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
+  /// Guests are technically authenticated, so a bare context.go('/login')
+  /// gets bounced back to /home by the router redirect. Drop the guest
+  /// session first, then navigate.
+  Future<void> _exitGuestTo(
+      BuildContext context, WidgetRef ref, String path) async {
+    await ref.read(authStateProvider.notifier).logout();
+    if (context.mounted) context.go(path);
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {
@@ -313,24 +155,19 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Выход'),
-        content: const Text('Вы уверены, что хотите выйти?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.r2)),
+        title: Text('Выход', style: AppTheme.display(size: 18, weight: FontWeight.w600)),
+        content: Text('Вы уверены, что хотите выйти?',
+            style: AppTheme.text(size: 14, color: AppColors.ink2, weight: FontWeight.w400)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(authStateProvider.notifier).logout();
               context.go('/login');
             },
-            child: const Text(
-              'Выйти',
-              style: TextStyle(color: AppColors.error),
-            ),
+            child: const Text('Выйти', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -338,40 +175,173 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget trailing;
-  final VoidCallback? onTap;
+class _ProfileCard extends StatelessWidget {
+  final String name;
+  final String handle;
+  final bool isGuest;
+  final VoidCallback? onEdit;
 
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    required this.trailing,
-    this.onTap,
+  const _ProfileCard({
+    required this.name,
+    required this.handle,
+    required this.isGuest,
+    this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: AppColors.textSecondary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.r3),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              JuntoAvatar(name: name, size: 64, hue: 75, online: !isGuest),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.display(
+                            size: 22, weight: FontWeight.w600, letterSpacing: -0.4)),
+                    const SizedBox(height: 2),
+                    Text(handle,
+                        style: AppTheme.text(size: 13, color: AppColors.ink3, weight: FontWeight.w400)),
+                  ],
                 ),
               ),
+              if (onEdit != null)
+                InkResponse(
+                  onTap: onEdit,
+                  radius: 20,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface2,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.edit_outlined, color: AppColors.ink2, size: 16),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: const [
+              _Stat(value: '47', label: 'сеансов'),
+              SizedBox(width: 28),
+              _Stat(value: '128', label: 'часов'),
+              SizedBox(width: 28),
+              _Stat(value: '12', label: 'друзей'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final String value;
+  final String label;
+  const _Stat({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: AppTheme.display(
+            size: 22, weight: FontWeight.w600, color: AppColors.amber, letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 2),
+        MonoLabel(label, color: AppColors.ink3, size: 9, letterSpacing: 1.4),
+      ],
+    );
+  }
+}
+
+class _SettingsSection extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _SettingsSection({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) ...[
+            MonoLabel(title, color: AppColors.ink3, letterSpacing: 1.8),
+            const SizedBox(height: 4),
+          ],
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+  final bool danger;
+  final bool isLast;
+
+  const _Row({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.onTap,
+    this.danger = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? AppColors.danger : AppColors.ink;
+    final iconColor = danger ? AppColors.danger : AppColors.ink3;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: isLast
+              ? null
+              : const Border(bottom: BorderSide(color: AppColors.hairline)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(label,
+                  style: AppTheme.text(size: 14, weight: FontWeight.w500, color: color)),
             ),
-            trailing,
+            if (value.isNotEmpty)
+              Text(value,
+                  style: AppTheme.text(size: 13, color: AppColors.ink3, weight: FontWeight.w400)),
+            if (!danger) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink4),
+            ],
           ],
         ),
       ),

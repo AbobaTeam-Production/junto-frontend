@@ -60,51 +60,57 @@ class _ReactionOverlayState extends ConsumerState<ReactionOverlay>
       },
     );
 
+    // Overlay is mounted inside the video player container; size emoji
+    // travel within the parent's bounds, not the whole screen — otherwise
+    // reactions fly down into the chat panel.
     return IgnorePointer(
-      child: Stack(
-        children: _reactions.map((r) {
-          return AnimatedBuilder(
-            animation: r.controller,
-            builder: (context, _) {
-              final t = r.controller.value;
-              final size = MediaQuery.of(context).size;
-              final startY = size.height * 0.7;
-              final endY = size.height * 0.05;
-              final currentY = startY + (endY - startY) * t;
-              final currentX = size.width * r.startX +
-                  sin(t * pi * 2) * 20; // gentle sway
-              final opacity = t < 0.7 ? 1.0 : (1.0 - (t - 0.7) / 0.3);
-              final scale = t < 0.1 ? t / 0.1 : 1.0;
+      child: LayoutBuilder(
+        builder: (context, constraints) => Stack(
+          children: _reactions.map((r) {
+            return AnimatedBuilder(
+              animation: r.controller,
+              builder: (context, _) {
+                final t = r.controller.value;
+                final w = constraints.maxWidth;
+                final h = constraints.maxHeight;
+                final startY = h * 0.85;
+                final endY = h * 0.10;
+                final currentY = startY + (endY - startY) * t;
+                final currentX = w * r.startX +
+                    sin(t * pi * 2) * 16; // gentle sway
+                final opacity = t < 0.7 ? 1.0 : (1.0 - (t - 0.7) / 0.3);
+                final scale = t < 0.1 ? t / 0.1 : 1.0;
 
-              return Positioned(
-                left: currentX - 24,
-                top: currentY,
-                child: Opacity(
-                  opacity: opacity.clamp(0.0, 1.0),
-                  child: Transform.scale(
-                    scale: scale.clamp(0.0, 1.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(r.emoji, style: const TextStyle(fontSize: 32)),
-                        Text(
-                          r.username,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.7),
-                            shadows: const [
-                              Shadow(blurRadius: 4, color: Colors.black),
-                            ],
+                return Positioned(
+                  left: currentX - 24,
+                  top: currentY,
+                  child: Opacity(
+                    opacity: opacity.clamp(0.0, 1.0),
+                    child: Transform.scale(
+                      scale: scale.clamp(0.0, 1.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(r.emoji, style: const TextStyle(fontSize: 32)),
+                          Text(
+                            r.username,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withValues(alpha: 0.7),
+                              shadows: const [
+                                Shadow(blurRadius: 4, color: Colors.black),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          );
-        }).toList(),
+                );
+              },
+            );
+          }).toList(),
+        ),
       ),
     );
   }

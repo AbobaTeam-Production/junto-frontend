@@ -21,7 +21,14 @@ class PlayerState {
   final String status; // 'idle', 'play', 'pause'
   final double position; // seconds
   final DateTime? timestamp;
+  /// Server-side ms epoch when the host issued this state. Used together
+  /// with [clockSyncProvider] to compute the expected current position.
+  final int? serverTsMs;
+  /// Transcoded HLS playlist — required for browsers, optional for native.
   final String? hlsUrl;
+  /// Direct stream URL (e.g. torrserver). Native libmpv plays any container
+  /// from this directly; browsers can't.
+  final String? rawStreamUrl;
   final String? youtubeVideoId;
   final String? sourceType; // 'upload', 'youtube'
   final String? title;
@@ -32,7 +39,9 @@ class PlayerState {
     this.status = 'idle',
     this.position = 0,
     this.timestamp,
+    this.serverTsMs,
     this.hlsUrl,
+    this.rawStreamUrl,
     this.youtubeVideoId,
     this.sourceType,
     this.title,
@@ -44,7 +53,9 @@ class PlayerState {
     String? status,
     double? position,
     DateTime? timestamp,
+    int? serverTsMs,
     String? hlsUrl,
+    String? rawStreamUrl,
     String? youtubeVideoId,
     String? sourceType,
     String? title,
@@ -55,7 +66,9 @@ class PlayerState {
       status: status ?? this.status,
       position: position ?? this.position,
       timestamp: timestamp ?? this.timestamp,
+      serverTsMs: serverTsMs ?? this.serverTsMs,
       hlsUrl: hlsUrl ?? this.hlsUrl,
+      rawStreamUrl: rawStreamUrl ?? this.rawStreamUrl,
       youtubeVideoId: youtubeVideoId ?? this.youtubeVideoId,
       sourceType: sourceType ?? this.sourceType,
       title: title ?? this.title,
@@ -113,9 +126,6 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
 
-  /// Callback for WebRTC signaling events (offer/answer/ice_candidate)
-  void Function(Map<String, dynamic>)? onWebRtcSignal;
-
   RoomWsNotifier({
     required this.roomId,
     required TokenService tokenService,
@@ -126,10 +136,16 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
 
   void _connect() {
     final token = _tokenService.accessToken;
-    if (token == null) return;
+    if (token == null) {
+      // ignore: avoid_print
+      print('JUNTO: room WS skip connect — no access token');
+      return;
+    }
 
     final uri = Uri.parse(
         '${ServerConfig.wsBaseUrl}/ws/room/$roomId/?token=$token');
+    // ignore: avoid_print
+    print('JUNTO: room WS connect → ${uri.toString().replaceFirst(RegExp(r'token=[^&]+'), 'token=…')}');
 
     _channel = WebSocketChannel.connect(uri);
     state = state.copyWith(connected: true);
@@ -137,12 +153,18 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
     _subscription = _channel!.stream.listen(
       (data) {
         final event = jsonDecode(data as String) as Map<String, dynamic>;
+        // ignore: avoid_print
+        print('JUNTO: room WS recv: ${event['event']}');
         _handleEvent(event);
       },
       onDone: () {
+        // ignore: avoid_print
+        print('JUNTO: room WS closed (close=${_channel?.closeCode}, reason=${_channel?.closeReason})');
         state = state.copyWith(connected: false);
       },
-      onError: (_) {
+      onError: (e) {
+        // ignore: avoid_print
+        print('JUNTO: room WS error: $e');
         state = state.copyWith(connected: false);
       },
     );
@@ -178,6 +200,7 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
             status: 'play',
             position: (event['position'] as num?)?.toDouble() ?? 0,
             timestamp: _parseTimestamp(event['timestamp']),
+            serverTsMs: (event['server_ts'] as num?)?.toInt(),
           ),
         );
 
@@ -187,6 +210,7 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
             status: 'pause',
             position: (event['position'] as num?)?.toDouble() ?? 0,
             timestamp: _parseTimestamp(event['timestamp']),
+            serverTsMs: (event['server_ts'] as num?)?.toInt(),
           ),
         );
 
@@ -195,6 +219,7 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
           player: state.player.copyWith(
             position: (event['position'] as num?)?.toDouble() ?? 0,
             timestamp: _parseTimestamp(event['timestamp']),
+            serverTsMs: (event['server_ts'] as num?)?.toInt(),
           ),
         );
 
@@ -204,6 +229,7 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
             status: event['status'] as String? ?? 'pause',
             position: (event['position'] as num?)?.toDouble() ?? 0,
             timestamp: _parseTimestamp(event['timestamp']),
+            serverTsMs: (event['server_ts'] as num?)?.toInt(),
           ),
         );
 
@@ -217,26 +243,43 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
         state = state.copyWith(onlineUsers: users);
 
       case 'media_ready':
-        // Only auto-switch if nothing is currently playing
-        if (state.player.hlsUrl == null && state.player.youtubeVideoId == null) {
-          state = state.copyWith(
-            player: state.player.copyWith(
-              hlsUrl: event['hls_url'] as String?,
-              youtubeVideoId: event['youtube_video_id'] as String?,
-              sourceType: event['source_type'] as String? ?? 'upload',
-              title: event['title'] as String?,
-              mediaProgress: 100,
-              mediaId: event['media_id'] as String?,
-            ),
-          );
-        }
+        // Hybrid streaming: torrents broadcast media_ready twice — first with
+        // raw_stream_url only (native can play), then again with hls_url
+        // populated once transcoding is done (web can play).
+        // Always merge whichever URL fields are non-empty without nuking
+        // existing ones, so a Web client stays "waiting" until HLS arrives.
+        final newHls = _nonEmpty(event['hls_url']);
+        final newRaw = _nonEmpty(event['raw_stream_url']);
+        final newYt = _nonEmpty(event['youtube_video_id']);
+        final hasAnyExisting = state.player.hlsUrl != null ||
+            state.player.rawStreamUrl != null ||
+            state.player.youtubeVideoId != null;
+        // Preserve whatever's already there; merge in new non-empty fields.
+        state = state.copyWith(
+          player: state.player.copyWith(
+            hlsUrl: newHls ?? state.player.hlsUrl,
+            rawStreamUrl: newRaw ?? state.player.rawStreamUrl,
+            youtubeVideoId: newYt ?? state.player.youtubeVideoId,
+            sourceType: hasAnyExisting
+                ? state.player.sourceType
+                : (event['source_type'] as String? ?? 'upload'),
+            title: hasAnyExisting
+                ? state.player.title
+                : (event['title'] as String?),
+            mediaProgress: 100,
+            mediaId: hasAnyExisting
+                ? state.player.mediaId
+                : (event['media_id'] as String?),
+          ),
+        );
 
       case 'play_media':
         state = state.copyWith(
           player: PlayerState(
             status: 'pause',
             position: 0,
-            hlsUrl: event['hls_url'] as String?,
+            hlsUrl: _nonEmpty(event['hls_url']),
+            rawStreamUrl: _nonEmpty(event['raw_stream_url']),
             sourceType: event['source_type'] as String? ?? 'upload',
             title: event['title'] as String?,
             mediaId: event['media_id'] as String?,
@@ -259,15 +302,12 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
             id: ++_reactionCounter,
           ),
         );
-
-      case 'webrtc_offer':
-      case 'webrtc_answer':
-      case 'ice_candidate':
-        onWebRtcSignal?.call(event);
     }
   }
 
   void sendChat(String text) {
+    // ignore: avoid_print
+    print('JUNTO: room WS send chat (channel=${_channel != null}, connected=${state.connected})');
     _channel?.sink.add(jsonEncode({
       'event': 'chat',
       'text': text,
@@ -308,6 +348,7 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
   void sendPlayMedia({
     required String mediaId,
     required String hlsUrl,
+    String rawStreamUrl = '',
     required String title,
     String sourceType = 'upload',
   }) {
@@ -315,35 +356,15 @@ class RoomWsNotifier extends StateNotifier<RoomWsState> {
       'event': 'play_media',
       'media_id': mediaId,
       'hls_url': hlsUrl,
+      'raw_stream_url': rawStreamUrl,
       'title': title,
       'source_type': sourceType,
     }));
   }
 
-  // ─── WebRTC signaling ────────────────────────────
-
-  void sendWebRtcOffer(String targetUserId, Map<String, dynamic> sdp) {
-    _channel?.sink.add(jsonEncode({
-      'event': 'webrtc_offer',
-      'target': targetUserId,
-      'sdp': sdp,
-    }));
-  }
-
-  void sendWebRtcAnswer(String targetUserId, Map<String, dynamic> sdp) {
-    _channel?.sink.add(jsonEncode({
-      'event': 'webrtc_answer',
-      'target': targetUserId,
-      'sdp': sdp,
-    }));
-  }
-
-  void sendIceCandidate(String targetUserId, Map<String, dynamic> candidate) {
-    _channel?.sink.add(jsonEncode({
-      'event': 'ice_candidate',
-      'target': targetUserId,
-      'candidate': candidate,
-    }));
+  String? _nonEmpty(dynamic v) {
+    if (v is String && v.isNotEmpty) return v;
+    return null;
   }
 
   DateTime? _parseTimestamp(dynamic value) {

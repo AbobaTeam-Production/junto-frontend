@@ -10,10 +10,15 @@ import 'package:go_router/go_router.dart';
 import '../../../core/video/player_api.dart';
 import '../../../core/video/player_factory.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/providers/auth_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/junto_primitives.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_endpoints.dart';
 import '../../../core/api/server_config.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
 import '../../../core/providers/voice_chat_provider.dart';
+import '../../../core/utils/clock_sync.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/participant_list.dart';
@@ -37,6 +42,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   bool _isHost = false;
   bool _showControls = true;
   bool _videoEnded = false;
+  /// True after `controller.open(url)` Future resolves successfully.
+  ///
+  /// On Web with a still-running HLS event playlist (no #EXT-X-ENDLIST yet)
+  /// `controller.isInitialized` stays false because media_kit can't compute
+  /// a duration. We treat the player as usable as soon as open() finishes,
+  /// since playback / play() / seek() actually work regardless.
+  bool _videoOpened = false;
   bool _isFullscreen = false;
   bool _orientationFullscreen = false;
   double _volume = 1.0;
@@ -69,14 +81,21 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             }
 
             // Check if media is already ready from API (only if WS hasn't set a URL yet)
-            final wsHlsUrl = ref.read(roomWsProvider(widget.roomId)).player.hlsUrl;
-            if (_currentHlsUrl == null && wsHlsUrl == null) {
+            final wsPlayer = ref.read(roomWsProvider(widget.roomId)).player;
+            final wsHasUrl =
+                _pickStreamUrl(hlsUrl: wsPlayer.hlsUrl, rawUrl: wsPlayer.rawStreamUrl) != null;
+            if (_currentHlsUrl == null && !wsHasUrl) {
               final mediaList = data['media'] as List?;
               if (mediaList != null && mediaList.isNotEmpty) {
                 final media = mediaList.first as Map<String, dynamic>;
                 if (media['status'] == 'ready') {
-                  final hlsUrl = media['hls_url'] as String?;
-                  if (hlsUrl != null) _initVideo(hlsUrl);
+                  final url = _pickStreamUrl(
+                    hlsUrl: media['hls_url'] as String?,
+                    rawUrl: media['raw_stream_url'] as String?,
+                  );
+                  if (url != null) _initVideo(url);
+                  // On Web, if HLS isn't ready yet, kick off lazy transcode.
+                  _maybeRequestTranscode(media);
                 } else if (media['status'] == 'processing') {
                   Future.delayed(const Duration(seconds: 2), () {
                     if (mounted && _currentHlsUrl == null) {
@@ -91,25 +110,19 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         fireImmediately: true,
       );
 
-      // Listen for user join/leave to manage voice chat peer connections
+      // Voice presence is managed by LiveKit (see voice_chat_provider).
+      // The room WS still emits user_joined/left for chat/seats, but voice
+      // tracks are subscribed automatically via LiveKit RoomEvents.
+
+      // When somebody joins/leaves over WS, refresh the room detail so the
+      // members list (used by _buildPresenceRow / ParticipantList) catches
+      // the new RoomMember row that JoinRoomView just inserted.
       ref.listenManual(
         roomWsProvider(widget.roomId).select((s) => s.onlineUsers),
         (previous, next) {
           if (previous == null) return;
-          final voiceNotifier =
-              ref.read(voiceChatProvider(widget.roomId).notifier);
-          // New users
-          for (final userId in next.values) {
-            if (!previous.values.contains(userId)) {
-              voiceNotifier.onUserJoined(userId);
-            }
-          }
-          // Left users
-          for (final userId in previous.values) {
-            if (!next.values.contains(userId)) {
-              voiceNotifier.onUserLeft(userId);
-            }
-          }
+          if (previous.length == next.length) return;
+          ref.invalidate(roomDetailProvider(widget.roomId));
         },
       );
 
@@ -118,8 +131,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         roomWsProvider(widget.roomId).select((s) => s.player),
         (previous, next) {
           // Init video when media arrives via WS (first media or play_media switch)
-          if (next.hlsUrl != null && next.hlsUrl != _currentHlsUrl) {
-            _initVideo(next.hlsUrl!);
+          final picked = _pickStreamUrl(
+            hlsUrl: next.hlsUrl,
+            rawUrl: next.rawStreamUrl,
+          );
+          if (picked != null && picked != _currentHlsUrl) {
+            _initVideo(picked);
             return;
           }
 
@@ -232,15 +249,55 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     }
   }
 
-  void _initVideo(String hlsUrl) {
-    if (_currentHlsUrl == hlsUrl) return;
+  void _initVideo(String streamUrl) {
+    if (_currentHlsUrl == streamUrl) return;
     // Non-host: never autoPlay on init — _applyPlayerSync handles it after init
-    _createController(hlsUrl, autoPlay: _isHost);
+    _createController(streamUrl, autoPlay: _isHost);
+  }
+
+  bool _transcodeRequested = false;
+
+  /// On Web, when we land on a torrent media item that has no HLS yet,
+  /// poke the backend to start transcoding. Native ignores — it plays
+  /// raw_stream_url directly and doesn't burn server CPU.
+  void _maybeRequestTranscode(Map<String, dynamic> media) {
+    if (!kIsWeb || _transcodeRequested) return;
+    if (media['source_type'] != 'torrent') return;
+    final hls = media['hls_url'] as String?;
+    if (hls != null && hls.isNotEmpty) return;
+    final id = media['id']?.toString();
+    if (id == null) return;
+    _transcodeRequested = true;
+    ref.read(dioProvider).post(ApiEndpoints.mediaTranscode(id)).catchError((e) {
+      _transcodeRequested = false; // allow retry on next room re-enter
+      // ignore: avoid_print
+      print('JUNTO: transcode request failed: $e');
+      throw e;
+    });
+  }
+
+  /// Decide which URL the local player should use.
+  ///
+  /// Web (browsers) can only decode H.264 in fragmented MP4/HLS, so HLS is
+  /// required even when a raw torrserver stream is available. Native (libmpv
+  /// via media_kit on Android/desktop) plays any container/codec from the
+  /// raw URL directly — no transcode wait.
+  String? _pickStreamUrl({String? hlsUrl, String? rawUrl}) {
+    String? clean(String? s) {
+      if (s == null || s.isEmpty) return null;
+      // Host-relative URLs (e.g. /torrserver/...) are emitted by the backend
+      // so the same record works no matter how the client reached us.
+      if (s.startsWith('/')) return '${ServerConfig.mediaBaseUrl}$s';
+      return s;
+    }
+    if (kIsWeb) return clean(hlsUrl);
+    return clean(rawUrl) ?? clean(hlsUrl);
   }
 
   void _createController(String hlsUrl, {Duration startAt = Duration.zero, bool autoPlay = false}) {
     _currentHlsUrl = hlsUrl;
     _videoEnded = false;
+    _videoOpened = false;
 
     _videoController?.dispose();
     final controller = createVideoPlayer();
@@ -249,7 +306,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     if (mounted) setState(() {});
 
     controller.addListener(() {
-      if (!mounted) return;
+      // Guard: if a newer controller has replaced this one, ignore its
+      // stale callbacks instead of touching a disposed player.
+      if (!mounted || _videoController != controller) return;
       setState(() {});
       // Detect video end
       if (controller.isInitialized &&
@@ -263,8 +322,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       }
     });
 
+    // ignore: avoid_print
+    print('JUNTO: controller.open() begin url=$hlsUrl');
     controller.open(hlsUrl).then((_) {
-      if (!mounted) return;
+      // ignore: avoid_print
+      print('JUNTO: controller.open() OK isInitialized=${controller.isInitialized} dur=${controller.duration}');
+      if (!mounted || _videoController != controller) return;
+      _videoOpened = true;
       controller.setVolume(_volume);
       if (startAt > Duration.zero) controller.seekTo(startAt);
       if (autoPlay) controller.play();
@@ -272,13 +336,59 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       // After init, force-sync non-host with current WS state
       if (!_isHost) {
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (!mounted) return;
+          if (!mounted || _videoController != controller) return;
           final ws = ref.read(roomWsProvider(widget.roomId)).player;
           _applyPlayerSync(ws);
         });
       }
+    }).catchError((e, st) {
+      // ignore: avoid_print
+      print('JUNTO: controller.open() ERROR: $e\n$st');
+    });
+  }
+
+  /// Non-host fallback for the central play button: toggle playback
+  /// LOCALLY without broadcasting. Mainly exists so the user can satisfy
+  /// Chrome's autoplay-on-user-gesture rule when joining a room where the
+  /// host is already playing — controller.play() from _applyPlayerSync
+  /// silently fails without a prior user gesture, leaving the video black.
+  ///
+  /// On a play-tap we re-apply sync once the controller had a moment to
+  /// honor the gesture; otherwise the guest would play from 0:00 while
+  /// the host is e.g. 30 min in, and no further state change ever
+  /// triggers a re-sync.
+  void _localTogglePlayback() {
+    final c = _videoController;
+    // ignore: avoid_print
+    print('JUNTO: localTogglePlayback c=${c != null} init=${c?.isInitialized} opened=$_videoOpened playing=${c?.isPlaying}');
+    if (c == null) return;
+    if (!c.isInitialized && !_videoOpened) return;
+    if (c.isPlaying) {
+      c.pause();
+      return;
+    }
+    // Try muted-autoplay first: Chrome will reject c.play() with
+    // NotAllowedError if there isn't a clean user-gesture chain (which is
+    // brittle through media_kit's internal Promises). Muted always works.
+    c.setVolume(0);
+    final fut = c.play();
+    // ignore: avoid_print
+    print('JUNTO: localTogglePlayback called play() (muted)');
+    fut.then((_) {
+      // ignore: avoid_print
+      print('JUNTO: c.play() resolved playing=${c.isPlaying} pos=${c.position}');
+      // Restore volume after we successfully started.
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _videoController == c) c.setVolume(_volume);
+      });
     }).catchError((e) {
-      debugPrint('Video init error: $e');
+      // ignore: avoid_print
+      print('JUNTO: c.play() rejected: $e');
+    });
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted || _videoController != c) return;
+      final ws = ref.read(roomWsProvider(widget.roomId)).player;
+      _applyPlayerSync(ws);
     });
   }
 
@@ -338,19 +448,33 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     }
   }
 
+  static const _hardSeekThresholdMs = 500;
+
   void _applyPlayerSync(PlayerState playerState) {
     if (_isHost) return;
-    final targetSec = playerState.position;
 
     final controller = _videoController;
-    if (controller == null || !controller.isInitialized) return;
+    if (controller == null) return;
+    // _videoOpened covers the Web HLS-event case where isInitialized stays
+    // false because hls.js can't compute duration before ENDLIST.
+    if (!controller.isInitialized && !_videoOpened) return;
 
-    final targetPos = Duration(milliseconds: (targetSec * 1000).toInt());
-    if (playerState.timestamp != null) {
-      final delay = DateTime.now().toUtc().difference(playerState.timestamp!);
-      controller.seekTo(targetPos + delay);
-    } else {
-      controller.seekTo(targetPos);
+    // Skip drift seek if we don't have a real duration. On Web with a still-
+    // running transcode this is the common case: hls.js doesn't know the
+    // total length yet, and seeking to the host's position would land past
+    // the available range — hls.js waits forever for a segment that
+    // ffmpeg hasn't produced. Instead, just mirror play/pause and let the
+    // viewer naturally lag the host until the transcode catches up.
+    final dur = controller.duration;
+    if (dur > Duration.zero) {
+      final expectedSec = _expectedPosition(playerState);
+      final currentSec = controller.position.inMilliseconds / 1000.0;
+      final driftMs = ((currentSec - expectedSec) * 1000).round();
+      if (driftMs.abs() > _hardSeekThresholdMs) {
+        controller.seekTo(
+          Duration(milliseconds: (expectedSec * 1000).toInt()),
+        );
+      }
     }
 
     if (playerState.status == 'play' && !controller.isPlaying) {
@@ -360,6 +484,23 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     }
   }
 
+  /// Expected video position right now, given the host-authored state.
+  ///
+  /// While playing, we add the time elapsed on the *server clock* since
+  /// the host issued the event (corrected for our local-vs-server skew via
+  /// [clockSyncProvider]). While paused, the position is fixed.
+  double _expectedPosition(PlayerState playerState) {
+    if (playerState.status != 'play' || playerState.serverTsMs == null) {
+      return playerState.position;
+    }
+    final clock = ref.read(clockSyncProvider);
+    final serverNow =
+        clock?.serverNowMs ?? DateTime.now().millisecondsSinceEpoch;
+    final elapsedSec = (serverNow - playerState.serverTsMs!) / 1000.0;
+    if (elapsedSec < 0) return playerState.position; // clock not synced yet
+    return playerState.position + elapsedSec;
+  }
+
   void _autoAdvanceToNext() {
     final roomData = ref.read(roomDetailProvider(widget.roomId)).valueOrNull;
     if (roomData == null) return;
@@ -367,12 +508,16 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final mediaList = (roomData['media'] as List?) ?? [];
     final currentUrl = _currentHlsUrl;
 
+    bool matchesCurrent(Map<String, dynamic> item) {
+      final h = item['hls_url'] as String?;
+      final r = item['raw_stream_url'] as String?;
+      return (h != null && h == currentUrl) || (r != null && r == currentUrl);
+    }
+
     // Find current index
     int currentIndex = -1;
     for (var i = 0; i < mediaList.length; i++) {
-      final item = mediaList[i] as Map<String, dynamic>;
-      final hlsUrl = item['hls_url'] as String?;
-      if (hlsUrl != null && hlsUrl == currentUrl) {
+      if (matchesCurrent(mediaList[i] as Map<String, dynamic>)) {
         currentIndex = i;
         break;
       }
@@ -381,15 +526,19 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     // Find next ready item
     for (var i = currentIndex + 1; i < mediaList.length; i++) {
       final item = mediaList[i] as Map<String, dynamic>;
-      if (item['status'] == 'ready' && item['hls_url'] != null) {
-        ref.read(roomWsProvider(widget.roomId).notifier).sendPlayMedia(
-          mediaId: item['id'].toString(),
-          hlsUrl: item['hls_url'] as String,
-          title: item['title'] as String? ?? 'Без названия',
-          sourceType: item['source_type'] as String? ?? 'upload',
-        );
-        return;
-      }
+      if (item['status'] != 'ready') continue;
+      final hls = item['hls_url'] as String? ?? '';
+      final raw = item['raw_stream_url'] as String? ?? '';
+      // Need at least one URL the local platform can use.
+      if (_pickStreamUrl(hlsUrl: hls, rawUrl: raw) == null) continue;
+      ref.read(roomWsProvider(widget.roomId).notifier).sendPlayMedia(
+        mediaId: item['id'].toString(),
+        hlsUrl: hls,
+        rawStreamUrl: raw,
+        title: item['title'] as String? ?? 'Без названия',
+        sourceType: item['source_type'] as String? ?? 'upload',
+      );
+      return;
     }
   }
 
@@ -413,7 +562,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     // Fullscreen mode — just video + overlay
     if (_isFullscreen) {
       final fsController = _videoController;
-      final fsInitialized = fsController != null && fsController.isInitialized;
+      final fsInitialized =
+          fsController != null && (fsController.isInitialized || _videoOpened);
       final fsPlaying = fsController?.isPlaying ?? false;
       final voiceState = ref.watch(voiceChatProvider(widget.roomId));
       final isMicActive = voiceState.isActive && !voiceState.isMuted;
@@ -442,7 +592,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               if (fsInitialized && _showControls)
                 Center(
                   child: GestureDetector(
-                    onTap: _isHost ? _onPlayPause : null,
+                    onTap: _isHost ? _onPlayPause : _localTogglePlayback,
                     child: Container(
                       width: 64,
                       height: 64,
@@ -513,7 +663,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                             const SizedBox(width: 16),
                             // Play/pause
                             IconButton(
-                              onPressed: _isHost ? _onPlayPause : null,
+                              onPressed: _isHost ? _onPlayPause : _localTogglePlayback,
                               icon: Icon(
                                 fsPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                                 color: Colors.white,
@@ -592,77 +742,141 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final onlineCount = wsState.onlineUsers.length;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => _showLeaveDialog(context),
+      backgroundColor: AppColors.bgDeep,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildTopBar(
+              context,
+              title: playerState.title ?? 'Комната',
+              inviteCode: inviteCode,
+              onlineCount: onlineCount,
+            ),
+            Expanded(
+              child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
+            ),
+          ],
         ),
-        title: Text(playerState.title ?? 'Комната'),
-        actions: [
-          // Invite code chip
-          GestureDetector(
-            onTap: () => _copyInviteCode(inviteCode),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(
+    BuildContext context, {
+    required String title,
+    required String inviteCode,
+    required int onlineCount,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 14, 8),
+      child: Row(
+        children: [
+          InkResponse(
+            onTap: () => _showLeaveDialog(context),
+            radius: 22,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.hairline),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.copy_rounded,
-                      size: 14, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    inviteCode,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
+              child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppColors.ink),
             ),
           ),
-          const SizedBox(width: 8),
-          // Participants count
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.people_outline,
-                    size: 16, color: AppColors.textSecondary),
-                const SizedBox(width: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: AppColors.live,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.live.withValues(alpha: 0.4),
+                            blurRadius: 0,
+                            spreadRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('LIVE',
+                        style: AppTheme.mono(
+                            size: 9,
+                            color: AppColors.live,
+                            letterSpacing: 1.6,
+                            weight: FontWeight.w600)),
+                    const SizedBox(width: 6),
+                    Text('· $onlineCount в эфире',
+                        style: AppTheme.mono(
+                            size: 9,
+                            color: AppColors.ink3,
+                            letterSpacing: 1.4,
+                            weight: FontWeight.w500)),
+                  ],
+                ),
+                const SizedBox(height: 2),
                 Text(
-                  '$onlineCount',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.text(size: 14, weight: FontWeight.w600, color: AppColors.ink),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _copyInviteCode(inviteCode),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
+              decoration: BoxDecoration(
+                color: AppColors.amberDim,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    inviteCode,
+                    style: AppTheme.mono(
+                      size: 11,
+                      color: AppColors.amber,
+                      letterSpacing: 2,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.content_copy_rounded, size: 12, color: AppColors.amber),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
-      body: isWide ? _buildWideLayout() : _buildNarrowLayout(),
     );
   }
 
   Widget _buildNarrowLayout() {
     return Column(
       children: [
-        _buildVideoPlayer(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.r2),
+            child: _buildVideoPlayer(),
+          ),
+        ),
         AnimatedCrossFade(
           firstChild: _buildControls(),
           secondChild: const SizedBox.shrink(),
@@ -671,33 +885,172 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               : CrossFadeState.showSecond,
           duration: const Duration(milliseconds: 200),
         ),
-        Container(
-          color: AppColors.surface,
-          child: TabBar(
-            controller: _tabController,
-            indicatorColor: AppColors.primary,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelColor: AppColors.textPrimary,
-            unselectedLabelColor: AppColors.textSecondary,
-            dividerColor: AppColors.divider,
-            tabs: const [
-              Tab(text: 'Чат'),
-              Tab(text: 'Участники'),
-              Tab(text: 'Очередь'),
-            ],
-          ),
-        ),
+        _buildPresenceRow(),
+        const SizedBox(height: 8),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              ChatPanel(roomId: widget.roomId),
-              ParticipantList(roomId: widget.roomId),
-              QueuePanel(roomId: widget.roomId, isHost: _isHost),
-            ],
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.bg,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(AppTheme.r3),
+                topRight: Radius.circular(AppTheme.r3),
+              ),
+            ),
+            padding: const EdgeInsets.only(top: 14),
+            child: Column(
+              children: [
+                _buildTabStrip(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      ChatPanel(roomId: widget.roomId),
+                      ParticipantList(roomId: widget.roomId),
+                      QueuePanel(roomId: widget.roomId, isHost: _isHost),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPresenceRow() {
+    final wsState = ref.watch(roomWsProvider(widget.roomId));
+    final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
+    final currentUser = ref.watch(currentUserProvider);
+    final speaking = ref.watch(voiceChatProvider(widget.roomId)).speakingPeers;
+
+    return roomAsync.maybeWhen(
+      data: (roomData) {
+        final members = (roomData['members'] as List?) ?? [];
+        final online = wsState.onlineUsers;
+
+        // Build the "seats" — up to 4 visible
+        final seats = <_Seat>[];
+        for (final m in members.take(4)) {
+          final mm = m as Map<String, dynamic>;
+          final user = mm['user'] as Map<String, dynamic>;
+          final name = user['username'] as String? ?? '?';
+          // LiveKit identity = string-form of backend user id (set in
+          // LiveKitTokenView). speakingPeers contains those identities.
+          final userId = user['id']?.toString() ?? '';
+          final isOnline = online.containsKey(name);
+          final isYou = currentUser?.username == name;
+          seats.add(_Seat(
+            name: isYou ? '$name (ты)' : name,
+            online: isOnline,
+            speaking: speaking.contains(userId),
+            hue: name.hashCode.abs() % 360,
+          ));
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MonoLabel(
+                'В комнате · ${online.length} из ${members.length}',
+                color: AppColors.ink3,
+                letterSpacing: 1.8,
+              ),
+              const SizedBox(height: 10),
+              if (seats.isEmpty)
+                _emptySeats()
+              else
+                Row(
+                  children: [
+                    for (var i = 0; i < seats.length; i++) ...[
+                      Expanded(child: _buildSeat(seats[i])),
+                      if (i < seats.length - 1) const SizedBox(width: 10),
+                    ],
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildSeat(_Seat seat) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.r2),
+        border: Border.all(
+          color: seat.speaking ? AppColors.live : AppColors.hairline,
+          width: seat.speaking ? 1.5 : 1,
+        ),
+      ),
+      child: Opacity(
+        opacity: seat.online ? 1 : 0.45,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            JuntoAvatar(name: seat.name, size: 36, hue: seat.hue),
+            const SizedBox(height: 6),
+            Text(
+              seat.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.text(
+                size: 11,
+                weight: FontWeight.w500,
+                color: seat.online ? AppColors.ink2 : AppColors.ink4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _emptySeats() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.r2),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      alignment: Alignment.centerLeft,
+      child: Text('Ещё никого нет — пригласи по коду.',
+          style: AppTheme.text(size: 12, color: AppColors.ink3, weight: FontWeight.w400)),
+    );
+  }
+
+  Widget _buildTabStrip() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: TabBar(
+        controller: _tabController,
+        indicator: const UnderlineTabIndicator(
+          borderSide: BorderSide(color: AppColors.amber, width: 2),
+          insets: EdgeInsets.symmetric(horizontal: 0),
+        ),
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorPadding: const EdgeInsets.only(bottom: 0),
+        dividerColor: Colors.transparent,
+        labelColor: AppColors.ink,
+        unselectedLabelColor: AppColors.ink3,
+        labelStyle: AppTheme.text(size: 13, weight: FontWeight.w600),
+        unselectedLabelStyle: AppTheme.text(size: 13, weight: FontWeight.w500),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+        tabAlignment: TabAlignment.start,
+        isScrollable: true,
+        tabs: const [
+          Tab(text: 'Чат'),
+          Tab(text: 'Участники'),
+          Tab(text: 'Очередь'),
+        ],
+      ),
     );
   }
 
@@ -708,7 +1061,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           flex: 3,
           child: Column(
             children: [
-              Expanded(child: _buildVideoPlayer()),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTheme.r2),
+                    child: _buildVideoPlayer(),
+                  ),
+                ),
+              ),
               AnimatedCrossFade(
                 firstChild: _buildControls(),
                 secondChild: const SizedBox.shrink(),
@@ -720,38 +1081,27 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             ],
           ),
         ),
-        Container(width: 1, color: AppColors.divider),
+        Container(width: 1, color: AppColors.hairline),
         SizedBox(
           width: 360,
-          child: Column(
-            children: [
-              Container(
-                color: AppColors.surface,
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorColor: AppColors.primary,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  labelColor: AppColors.textPrimary,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  dividerColor: AppColors.divider,
-                  tabs: const [
-                    Tab(text: 'Чат'),
-                    Tab(text: 'Участники'),
-                    Tab(text: 'Очередь'),
-                  ],
+          child: Container(
+            color: AppColors.bg,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                _buildTabStrip(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      ChatPanel(roomId: widget.roomId),
+                      ParticipantList(roomId: widget.roomId),
+                      QueuePanel(roomId: widget.roomId, isHost: _isHost),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    ChatPanel(roomId: widget.roomId),
-                    ParticipantList(roomId: widget.roomId),
-                    QueuePanel(roomId: widget.roomId, isHost: _isHost),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -760,15 +1110,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
 
   Widget _buildFullscreenVideo() {
     final controller = _videoController;
-    if (controller == null || !controller.isInitialized) {
+    if (controller == null || (!controller.isInitialized && !_videoOpened)) {
       return const CircularProgressIndicator(color: AppColors.primary);
     }
     return SizedBox.expand(
       child: FittedBox(
         fit: BoxFit.contain,
-        child: SizedBox(
-          width: controller.videoSize.width,
-          height: controller.videoSize.height,
+        child: AspectRatio(
+          aspectRatio: controller.videoSize.width > 0 &&
+                  controller.videoSize.height > 0
+              ? controller.videoSize.width / controller.videoSize.height
+              : 16 / 9,
           child: controller.buildWidget(),
         ),
       ),
@@ -779,7 +1131,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final playerState = wsState.player;
     final controller = _videoController;
-    final isInitialized = controller != null && controller.isInitialized;
+    // Treat the player as ready once open() resolved, even if media_kit's
+    // duration probe hasn't completed (Web HLS event playlist case).
+    final isInitialized =
+        controller != null && (controller.isInitialized || _videoOpened);
     final isPlaying = controller?.isPlaying ?? false;
 
     return AspectRatio(
@@ -789,18 +1144,16 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Video or placeholder
+              // Video or placeholder.
+              //
+              // On Web, the platform view inside controller.buildWidget()
+              // only mounts a <video> tag once Flutter assigns it a real
+              // (non-zero) layout box. FittedBox + zero-sized children was
+              // collapsing the box, so we now hand the player the full
+              // available area directly via Positioned.fill — works on
+              // both web (HtmlElementView) and native (Texture).
               if (isInitialized)
-                SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: controller.videoSize.width,
-                      height: controller.videoSize.height,
-                      child: controller.buildWidget(),
-                    ),
-                  ),
-                )
+                Positioned.fill(child: controller.buildWidget())
               else
                 Container(
                   decoration: BoxDecoration(
@@ -822,8 +1175,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                 ),
               ),
 
-              // Transcoding progress
-              if (!isInitialized && playerState.mediaProgress != null && playerState.mediaProgress! < 100)
+              // Transcoding progress — only when there's no playable URL for
+              // this platform yet. On native we get raw_stream_url before
+              // ffmpeg even starts, so the "transcoding" spinner is just
+              // background noise; hide it.
+              if (!isInitialized &&
+                  playerState.mediaProgress != null &&
+                  playerState.mediaProgress! < 100 &&
+                  _pickStreamUrl(
+                          hlsUrl: playerState.hlsUrl,
+                          rawUrl: playerState.rawStreamUrl) ==
+                      null)
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -840,7 +1202,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                 ),
 
               // Waiting for content
-              if (!isInitialized && playerState.hlsUrl == null && _currentHlsUrl == null && playerState.mediaProgress == null)
+              if (!isInitialized &&
+                  _pickStreamUrl(
+                          hlsUrl: playerState.hlsUrl,
+                          rawUrl: playerState.rawStreamUrl) ==
+                      null &&
+                  _currentHlsUrl == null &&
+                  playerState.mediaProgress == null)
                 Text(
                   'Ожидание контента...',
                   style: TextStyle(
@@ -850,13 +1218,28 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                 ),
 
               // Loading spinner when media URL set but not yet initialized
-              if (!isInitialized && (playerState.hlsUrl != null || _currentHlsUrl != null))
+              if (!isInitialized &&
+                  (_pickStreamUrl(
+                              hlsUrl: playerState.hlsUrl,
+                              rawUrl: playerState.rawStreamUrl) !=
+                          null ||
+                      _currentHlsUrl != null))
                 const CircularProgressIndicator(color: AppColors.primary),
 
               // Play/pause overlay
               if (isInitialized && _showControls)
                 GestureDetector(
-                  onTap: _isHost ? () { _onPlayPause(); _restartHideTimer(); } : null,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    // ignore: avoid_print
+                    print('JUNTO: center play tap (host=$_isHost)');
+                    _restartHideTimer();
+                    if (_isHost) {
+                      _onPlayPause();
+                    } else {
+                      _localTogglePlayback();
+                    }
+                  },
                   child: Container(
                     width: 64,
                     height: 64,
@@ -937,36 +1320,60 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       durationSec = duration.inSeconds;
     }
 
+    final volumeIcon = _volume == 0
+        ? Icons.volume_off_rounded
+        : _volume < 0.5
+            ? Icons.volume_down_rounded
+            : Icons.volume_up_rounded;
+
     return Column(
       children: [
         SliderTheme(
-            data: SliderThemeData(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-              activeTrackColor: AppColors.primary,
-              inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary.withValues(alpha: 0.2),
-            ),
-            child: Slider(
-              value: progress.clamp(0.0, 1.0),
-              onChanged: _isHost ? _onSeek : null,
-            ),
+          data: SliderThemeData(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withValues(alpha: 0.2),
           ),
+          child: Slider(
+            value: progress.clamp(0.0, 1.0),
+            onChanged: _isHost ? _onSeek : null,
+          ),
+        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 _formatDuration(positionSec),
                 style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
+              const Spacer(),
               if (durationSec > 0)
                 Text(
                   _formatDuration(durationSec),
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              // Volume mute/unmute toggle
+              IconButton(
+                onPressed: () {
+                  final v = _volume > 0 ? 0.0 : 1.0;
+                  setState(() => _volume = v);
+                  _videoController?.setVolume(v);
+                },
+                visualDensity: VisualDensity.compact,
+                icon: Icon(volumeIcon, color: Colors.white70, size: 20),
+              ),
+              // Next track — host only
+              if (_isHost)
+                IconButton(
+                  onPressed: _playNext,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.skip_next_rounded,
+                      color: Colors.white70, size: 22),
                 ),
             ],
           ),
@@ -977,6 +1384,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 
   void _onMicTap() {
+    // ignore: avoid_print
+    print('JUNTO: mic tap');
     final voiceState = ref.read(voiceChatProvider(widget.roomId));
     final voiceNotifier = ref.read(voiceChatProvider(widget.roomId).notifier);
 
@@ -987,67 +1396,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     }
   }
 
-  Widget _buildVolumeButton() {
-    return GestureDetector(
-      onTap: () {
-        // Toggle mute on tap
-        final newVol = _volume > 0 ? 0.0 : 1.0;
-        setState(() => _volume = newVol);
-        _videoController?.setVolume(newVol);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _volume == 0
-                  ? Icons.volume_off_rounded
-                  : _volume < 0.5
-                      ? Icons.volume_down_rounded
-                      : Icons.volume_up_rounded,
-              color: AppColors.textSecondary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 56,
-            child: SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 3,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                activeTrackColor: AppColors.primary,
-                inactiveTrackColor: AppColors.surfaceLight,
-                thumbColor: AppColors.primary,
-              ),
-              child: Slider(
-                value: _volume,
-                onChanged: (v) {
-                  setState(() => _volume = v);
-                  _videoController?.setVolume(v);
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildControls() {
-    final controller = _videoController;
-    final isPlaying = controller?.isPlaying ?? false;
+    // Room-side controls only: voice/speaker/reactions. Video transport
+    // controls (play/pause/next/seek/volume) live INSIDE the player overlay
+    // so the bar stays uncluttered on narrow phones.
     final voiceState = ref.watch(voiceChatProvider(widget.roomId));
     final isMicActive = voiceState.isActive && !voiceState.isMuted;
-    final hasVideo = controller != null && controller.isInitialized;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1060,7 +1414,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Mic toggle
+          // Mic toggle (long-press to fully leave the voice room)
           _ControlButton(
             icon: isMicActive ? Icons.mic_rounded : Icons.mic_off_rounded,
             label: voiceState.isActive
@@ -1074,11 +1428,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                     .read(voiceChatProvider(widget.roomId).notifier)
                     .stop()
                 : null,
+            isPrimary: true,
           ),
 
-          // Speaker toggle (mobile only, visible when voice active)
+          // Speaker toggle — only when voice is active and on mobile
           if (voiceState.isActive && !kIsWeb) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: 18),
             _ControlButton(
               icon: voiceState.speakerOn
                   ? Icons.volume_up_rounded
@@ -1091,36 +1446,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                   .toggleSpeaker(),
             ),
           ],
-          const SizedBox(width: 12),
-
-          // Play/pause (host only)
-          _ControlButton(
-            icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            label: isPlaying ? 'Пауза' : 'Играть',
-            isActive: isPlaying,
-            activeColor: AppColors.primary,
-            onTap: _isHost ? _onPlayPause : null,
-            isPrimary: true,
-          ),
-          const SizedBox(width: 12),
-
-          // Next (host only)
-          if (_isHost) ...[
-            _ControlButton(
-              icon: Icons.skip_next_rounded,
-              label: 'Далее',
-              isActive: false,
-              activeColor: AppColors.primary,
-              onTap: _playNext,
-            ),
-            const SizedBox(width: 12),
-          ],
-
-          // Volume (compact with mini slider)
-          if (hasVideo) ...[
-            _buildVolumeButton(),
-            const SizedBox(width: 12),
-          ],
+          const SizedBox(width: 18),
 
           // Reactions
           _ControlButton(
@@ -1237,6 +1563,19 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 }
 
+class _Seat {
+  final String name;
+  final bool online;
+  final bool speaking;
+  final int hue;
+  const _Seat({
+    required this.name,
+    required this.online,
+    required this.speaking,
+    required this.hue,
+  });
+}
+
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1259,6 +1598,9 @@ class _ControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // Default deferToChild only registers taps on the icon's pixels;
+      // opaque makes the whole label+icon column a hit target.
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
       child: Column(

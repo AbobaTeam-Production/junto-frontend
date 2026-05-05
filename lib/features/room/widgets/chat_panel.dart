@@ -108,9 +108,15 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                 ),
         ),
 
-        // Input area
+        // Input area — respect bottom safe-area inset (gesture nav bar /
+        // rounded corner cutouts) so the send button isn't clipped.
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+          padding: EdgeInsets.fromLTRB(
+            12,
+            8,
+            8,
+            8 + MediaQuery.of(context).padding.bottom,
+          ),
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: AppColors.divider)),
           ),
@@ -157,7 +163,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   ),
                   child: const Icon(
                     Icons.send_rounded,
-                    color: Colors.white,
+                    color: AppColors.amberInk,
                     size: 18,
                   ),
                 ),

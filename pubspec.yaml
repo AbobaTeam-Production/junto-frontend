@@ -41,12 +41,23 @@ dependencies:
   shared_preferences: ^2.2.0
   file_picker: ^8.0.0
   image_picker: ^1.0.0
-  video_player: ^2.8.0
-  media_kit: ^1.1.11
-  media_kit_video: ^1.2.5
+  # video_player + video_player_web_hls were dropped — the latter's JS
+  # interop broke against hls.js >= 1.4 (`hlsMediaAttached` callback fires
+  # an `internalException`, source never loads). Web HLS is now wired
+  # directly in lib/core/video/player_web.dart against hls.js bundled in
+  # web/index.html. Native still uses media_kit via player_native.dart.
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  # Video libs umbrella — adds web init wiring in addition to native libs.
+  media_kit_libs_video: ^1.0.7
   media_kit_libs_windows_video: ^1.0.10
   media_kit_libs_android_video: ^1.3.6
-  flutter_webrtc: ^0.12.5
+  flutter_webrtc: ^1.4.0
+  livekit_client: ^2.7.0
+  # Required by livekit_client; declared explicitly so Flutter Web registers
+  # the plugin's web implementation (otherwise MissingPluginException for
+  # dev.fluttercommunity.plus/connectivity at LiveKit connect time).
+  connectivity_plus: ^7.1.1
   web: ^1.1.1
   pointer_interceptor: ^0.10.1
 

@@ -74,7 +74,13 @@ class NativeVideoPlayer implements UnifiedVideoPlayer {
 
   @override
   Widget buildWidget() {
-    return mkv.Video(controller: _videoController);
+    // We render our own controls in room_screen — disable media_kit's default
+    // material overlay (red seekbar / fullscreen button) so it doesn't paint
+    // on top of the app UI.
+    return mkv.Video(
+      controller: _videoController,
+      controls: mkv.NoVideoControls,
+    );
   }
 
   @override
