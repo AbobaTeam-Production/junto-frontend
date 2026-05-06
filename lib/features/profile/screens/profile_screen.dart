@@ -74,23 +74,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ],
                     ),
                   ),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(Icons.tune_rounded, size: 22, color: AppColors.ink2),
-                      if ((user?.pendingRequestsCount ?? 0) > 0)
-                        Positioned(
-                          right: -4, top: -4,
-                          child: Container(
-                            width: 10, height: 10,
-                            decoration: const BoxDecoration(
-                              color: AppColors.amber,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                  // Settings shortcut on the right was decorative — this
+                  // screen IS the settings page, so the icon was a dead
+                  // chiclet. We keep a small badge here only when the
+                  // user has incoming friend requests waiting; tapping
+                  // jumps straight to the requests tab.
+                  if ((user?.pendingRequestsCount ?? 0) > 0)
+                    InkResponse(
+                      radius: 22,
+                      onTap: () => context.push('/friends'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.amber.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                    ],
-                  ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_add_alt_1_rounded,
+                                size: 14, color: AppColors.amber),
+                            const SizedBox(width: 6),
+                            Text('${user!.pendingRequestsCount}',
+                                style: AppTheme.text(
+                                    size: 12,
+                                    weight: FontWeight.w600,
+                                    color: AppColors.amber)),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -121,13 +135,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // Settings section
+            // Settings section. Notifications row is hidden until FCM
+            // / Web Push is wired — the original placeholder rendered as
+            // a tappable row but did nothing, which felt broken.
             _SettingsSection(
               title: l.profileSettingsTitle,
               children: [
-                // Notifications row is intentionally non-interactive on this
-                // build — Web Push / FCM is parked until we wire Firebase.
-                _Row(icon: Icons.notifications_none_rounded, label: l.profileNotifications, value: l.profileNotificationsOff),
                 _Row(
                   icon: Icons.language_outlined,
                   label: l.profileLanguage,
