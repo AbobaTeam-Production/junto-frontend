@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/junto_primitives.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/fcm_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../widgets/edit_profile_sheet.dart';
 import '../widgets/language_picker_sheet.dart';
@@ -135,12 +136,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // Settings section. Notifications row is hidden until FCM
-            // / Web Push is wired — the original placeholder rendered as
-            // a tappable row but did nothing, which felt broken.
+            // Settings section. Notifications row is hidden on platforms
+            // where firebase_messaging has no implementation (Windows /
+            // Linux) — toggling it would do nothing visible to the user.
             _SettingsSection(
               title: l.profileSettingsTitle,
               children: [
+                if (fcmSupported)
+                  _Row(
+                    icon: Icons.notifications_none_rounded,
+                    label: l.profileNotifications,
+                    value: settings.notificationsEnabled
+                        ? l.profileNotificationsOn
+                        : l.profileNotificationsOff,
+                    onTap: () => ref
+                        .read(settingsProvider.notifier)
+                        .setNotificationsEnabled(!settings.notificationsEnabled),
+                  ),
                 _Row(
                   icon: Icons.language_outlined,
                   label: l.profileLanguage,

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#101014</color>
+    <!-- Tint for FCM status-bar silhouette (brand amber). -->
+    <color name="notification_color">#EBB25A</color>
 </resources>

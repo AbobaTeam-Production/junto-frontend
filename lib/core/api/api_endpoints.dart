@@ -27,4 +27,9 @@ class ApiEndpoints {
   static String friendAccept(int id) => '/friends/$id/accept/';
   static String friendDelete(int id) => '/friends/$id/';
   static const String userSearch = '/users/search/';
+
+  // Push devices
+  static const String userDevices = '/users/devices/';
+  static const String userDevicesTestPush = '/users/devices/test-push/';
+  static String userDeviceDelete(int id) => '/users/devices/$id/';
 }
