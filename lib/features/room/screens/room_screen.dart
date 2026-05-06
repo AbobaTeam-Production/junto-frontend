@@ -35,6 +35,21 @@ class RoomScreen extends ConsumerStatefulWidget {
   ConsumerState<RoomScreen> createState() => _RoomScreenState();
 }
 
+enum _PlayerUIState {
+  /// No URL, no progress, no controller (e.g. mediaProgress already 100 but
+  /// URL not yet propagated — rare edge case, render nothing).
+  idle,
+  /// Waiting for the host to add content (no progress, no URL).
+  waiting,
+  /// Backend transcoding progress while there's no playable URL for this
+  /// platform yet.
+  transcoding,
+  /// URL set (locally or via WS), controller initializing.
+  loading,
+  /// Controller has finished `open()` and is ready to play.
+  ready,
+}
+
 class _RoomScreenState extends ConsumerState<RoomScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController;
@@ -646,8 +661,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     // Fullscreen mode — just video + overlay
     if (_isFullscreen) {
       final fsController = _videoController;
-      final fsInitialized =
-          fsController != null && (fsController.isInitialized || _videoOpened);
+      final fsWsState = ref.watch(roomWsProvider(widget.roomId));
+      final fsState = _resolvePlayerUIState(fsWsState.player, fsController);
+      final fsInitialized = fsState == _PlayerUIState.ready;
       final fsPlaying = fsController?.isPlaying ?? false;
       final voiceState = ref.watch(voiceChatProvider(widget.roomId));
       final isMicActive = voiceState.isActive && !voiceState.isMuted;
@@ -1205,8 +1221,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
   }
 
   Widget _buildFullscreenVideo() {
+    final wsState = ref.watch(roomWsProvider(widget.roomId));
     final controller = _videoController;
-    if (controller == null || (!controller.isInitialized && !_videoOpened)) {
+    final state = _resolvePlayerUIState(wsState.player, controller);
+    if (state != _PlayerUIState.ready || controller == null) {
       return const CircularProgressIndicator(color: AppColors.primary);
     }
     final w = controller.videoSize.width;
@@ -1230,175 +1248,71 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     );
   }
 
+  /// Resolves which UI state the player is in.
+  ///
+  /// Order of precedence: ready > transcoding > loading > waiting > idle.
+  /// `transcoding` requires no playable URL yet — once a URL arrives we move
+  /// straight to `loading` even if backend progress is still <100.
+  _PlayerUIState _resolvePlayerUIState(PlayerState ps, UnifiedVideoPlayer? c) {
+    // Treat the player as ready once open() resolved, even if media_kit's
+    // duration probe hasn't completed (Web HLS event playlist case).
+    final ready = c != null && (c.isInitialized || _videoOpened);
+    if (ready) return _PlayerUIState.ready;
+    final hasUrl = _pickStreamUrl(hlsUrl: ps.hlsUrl, rawUrl: ps.rawStreamUrl) != null
+        || _currentHlsUrl != null;
+    if (ps.mediaProgress != null && ps.mediaProgress! < 100 && !hasUrl) {
+      return _PlayerUIState.transcoding;
+    }
+    if (hasUrl) return _PlayerUIState.loading;
+    if (ps.mediaProgress == null) return _PlayerUIState.waiting;
+    return _PlayerUIState.idle;
+  }
+
   Widget _buildVideoPlayer() {
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final playerState = wsState.player;
     final controller = _videoController;
-    // Treat the player as ready once open() resolved, even if media_kit's
-    // duration probe hasn't completed (Web HLS event playlist case).
-    final isInitialized =
-        controller != null && (controller.isInitialized || _videoOpened);
-    final isPlaying = controller?.isPlaying ?? false;
+    final state = _resolvePlayerUIState(playerState, controller);
+    final isReady = state == _PlayerUIState.ready;
 
     return AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Container(
-          color: Colors.black,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Video or placeholder.
-              //
-              // On Web, the platform view inside controller.buildWidget()
-              // only mounts a <video> tag once Flutter assigns it a real
-              // (non-zero) layout box. FittedBox + zero-sized children was
-              // collapsing the box, so we now hand the player the full
-              // available area directly via Positioned.fill — works on
-              // both web (HtmlElementView) and native (Texture).
-              if (isInitialized)
-                Positioned.fill(child: controller.buildWidget())
-              else
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.surfaceLight.withValues(alpha: 0.5),
-                        Colors.black,
-                      ],
-                      radius: 1.2,
-                    ),
-                  ),
-                ),
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: Colors.black,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Base layer: video or backdrop.
+            //
+            // On Web, the platform view inside controller.buildWidget() only
+            // mounts a <video> tag once Flutter assigns it a real (non-zero)
+            // layout box, so we hand the player the full available area
+            // directly via Positioned.fill — works on both web
+            // (HtmlElementView) and native (Texture).
+            Positioned.fill(
+              child: isReady && controller != null
+                  ? controller.buildWidget()
+                  : _videoBackdrop(),
+            ),
 
-              // Transparent tap zone over video (captures taps that platform view would swallow)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onTap: _toggleControls,
-                ),
+            // Transparent tap zone over video (captures taps that the
+            // platform view would otherwise swallow).
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _toggleControls,
               ),
+            ),
 
-              // Transcoding progress — only when there's no playable URL for
-              // this platform yet. On native we get raw_stream_url before
-              // ffmpeg even starts, so the "transcoding" spinner is just
-              // background noise; hide it.
-              if (!isInitialized &&
-                  playerState.mediaProgress != null &&
-                  playerState.mediaProgress! < 100 &&
-                  _pickStreamUrl(
-                          hlsUrl: playerState.hlsUrl,
-                          rawUrl: playerState.rawStreamUrl) ==
-                      null)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: AppColors.primary),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppLocalizations.of(context).roomVideoProcessing(playerState.mediaProgress!),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+            // Status indicator for non-ready states.
+            _buildPlayerStatusIndicator(state, playerState),
 
-              // Waiting for content
-              if (!isInitialized &&
-                  _pickStreamUrl(
-                          hlsUrl: playerState.hlsUrl,
-                          rawUrl: playerState.rawStreamUrl) ==
-                      null &&
-                  _currentHlsUrl == null &&
-                  playerState.mediaProgress == null)
-                Text(
-                  AppLocalizations.of(context).roomVideoWaiting,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 14,
-                  ),
-                ),
+            // Ready-only overlays.
+            if (isReady && _showControls) _buildPlayPauseOverlay(controller),
+            if (isReady && _showControls) _buildFullscreenButton(),
+            if (isReady) _buildSeekBarOverlay(controller),
 
-              // Loading spinner when media URL set but not yet initialized
-              if (!isInitialized &&
-                  (_pickStreamUrl(
-                              hlsUrl: playerState.hlsUrl,
-                              rawUrl: playerState.rawStreamUrl) !=
-                          null ||
-                      _currentHlsUrl != null))
-                const CircularProgressIndicator(color: AppColors.primary),
-
-              // Play/pause overlay
-              if (isInitialized && _showControls)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    // ignore: avoid_print
-                    print('JUNTO: center play tap (host=$_isHost)');
-                    _restartHideTimer();
-                    if (_isHost) {
-                      _onPlayPause();
-                    } else {
-                      _localTogglePlayback();
-                    }
-                  },
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      size: 40,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-
-            // Fullscreen button (top-right)
-            if (isInitialized && _showControls)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: _enterFullscreen,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.fullscreen_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-
-            // Progress bar
-            if (isInitialized)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: IgnorePointer(
-                  ignoring: !_showControls,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _showControls ? 1.0 : 0.0,
-                    child: _buildSeekBar(controller),
-                  ),
-                ),
-              ),
-
-            // Reaction overlay on video
+            // Reaction overlay on video.
             Positioned.fill(
               child: ReactionOverlay(roomId: widget.roomId),
             ),
@@ -1406,6 +1320,125 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         ),
       ),
     ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _videoBackdrop() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          colors: [
+            AppColors.surfaceLight.withValues(alpha: 0.5),
+            Colors.black,
+          ],
+          radius: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerStatusIndicator(_PlayerUIState state, PlayerState ps) {
+    switch (state) {
+      case _PlayerUIState.idle:
+      case _PlayerUIState.ready:
+        return const SizedBox.shrink();
+      case _PlayerUIState.waiting:
+        return Text(
+          AppLocalizations.of(context).roomVideoWaiting,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 14,
+          ),
+        );
+      // Transcoding spinner only when there's no playable URL for this
+      // platform yet. On native we get raw_stream_url before ffmpeg even
+      // starts, so the "transcoding" spinner would be background noise —
+      // _resolvePlayerUIState routes those cases to `loading` instead.
+      case _PlayerUIState.transcoding:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 12),
+            Text(
+              AppLocalizations.of(context).roomVideoProcessing(ps.mediaProgress!),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        );
+      case _PlayerUIState.loading:
+        return const CircularProgressIndicator(color: AppColors.primary);
+    }
+  }
+
+  Widget _buildPlayPauseOverlay(UnifiedVideoPlayer? controller) {
+    final isPlaying = controller?.isPlaying ?? false;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        // ignore: avoid_print
+        print('JUNTO: center play tap (host=$_isHost)');
+        _restartHideTimer();
+        if (_isHost) {
+          _onPlayPause();
+        } else {
+          _localTogglePlayback();
+        }
+      },
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          size: 40,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullscreenButton() {
+    return Positioned(
+      top: 8,
+      right: 8,
+      child: GestureDetector(
+        onTap: _enterFullscreen,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(
+            Icons.fullscreen_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSeekBarOverlay(UnifiedVideoPlayer? controller) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: IgnorePointer(
+        ignoring: !_showControls,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: _showControls ? 1.0 : 0.0,
+          child: _buildSeekBar(controller),
+        ),
+      ),
+    );
   }
 
   Widget _buildSeekBar(UnifiedVideoPlayer? controller) {
