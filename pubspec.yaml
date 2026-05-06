@@ -75,6 +75,39 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # Branding generators — only used at build prep time, not at runtime.
+  # Run after editing assets/branding/*.png:
+  #   dart run flutter_launcher_icons
+  #   dart run flutter_native_splash:create
+  flutter_launcher_icons: ^0.14.0
+  flutter_native_splash: ^2.4.0
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/branding/logo_1024.png"
+  adaptive_icon_background: "#101014"
+  adaptive_icon_foreground: "assets/branding/logo_foreground_1024.png"
+  web:
+    generate: true
+    image_path: "assets/branding/logo_1024.png"
+    background_color: "#101014"
+    theme_color: "#EBB25A"
+  windows:
+    generate: true
+    image_path: "assets/branding/logo_1024.png"
+    icon_size: 256
+
+flutter_native_splash:
+  color: "#101014"
+  image: "assets/branding/splash_512.png"
+  android_12:
+    color: "#101014"
+    image: "assets/branding/splash_512.png"
+  android: true
+  ios: false
+  web: false
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
