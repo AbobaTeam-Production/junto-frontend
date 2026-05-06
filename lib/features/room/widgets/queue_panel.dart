@@ -21,7 +21,7 @@ class QueuePanel extends ConsumerWidget {
 
     return roomAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => Center(
+      error: (_, _) => Center(
         child: Text(l.queueLoadError, style: const TextStyle(color: AppColors.textSecondary)),
       ),
       data: (data) {

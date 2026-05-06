@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,205 +5,73 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
 import '../../rooms/providers/room_providers.dart';
-import 'torrent_result_tile.dart';
+import 'media_source_picker.dart';
 import '../../../l10n/app_localizations.dart';
 
-const _kChunkSize = 5 * 1024 * 1024;
-
-class AddMediaSheet extends ConsumerStatefulWidget {
+class AddMediaSheet extends ConsumerWidget {
   final String roomId;
 
   const AddMediaSheet({super.key, required this.roomId});
 
-  @override
-  ConsumerState<AddMediaSheet> createState() => _AddMediaSheetState();
-}
-
-class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
-  String _selectedSource = 'upload';
-  final _urlController = TextEditingController();
-  final _searchController = TextEditingController();
-  bool _loading = false;
-  PlatformFile? _pickedFile;
-  double _uploadProgress = 0;
-
-  // Torrent search state
-  bool _searching = false;
-  List<Map<String, dynamic>> _searchResults = [];
-  bool _resolvingMagnet = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _urlController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['mp4', 'mkv', 'avi', 'mov', 'webm'],
-      withData: true,
-    );
-    if (result != null && result.files.isNotEmpty) {
-      setState(() => _pickedFile = result.files.first);
-    }
-  }
-
-  Future<void> _uploadFile() async {
-    final file = _pickedFile;
-    if (file == null) return;
-
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) {
-      throw Exception(AppLocalizations.of(context).addMediaFileReadError);
-    }
-
-    final fileSize = bytes.length;
-    final totalChunks = (fileSize / _kChunkSize).ceil();
+  Future<void> _onUpload(
+    WidgetRef ref,
+    BuildContext context,
+    PlatformFile file,
+    void Function(double) onProgress,
+  ) async {
     final dio = ref.read(dioProvider);
-
-    for (var i = 0; i < totalChunks; i++) {
-      final start = i * _kChunkSize;
-      final end = (start + _kChunkSize > fileSize) ? fileSize : start + _kChunkSize;
-      final chunkBytes = bytes.sublist(start, end);
-
-      final formData = FormData.fromMap({
-        'chunk': MultipartFile.fromBytes(chunkBytes, filename: 'chunk_$i'),
-        'chunk_index': i,
-        'total_chunks': totalChunks,
-        'room_id': widget.roomId,
-        'filename': file.name,
-      });
-
-      await dio.post(ApiEndpoints.mediaUpload, data: formData);
-      if (mounted) setState(() => _uploadProgress = (i + 1) / totalChunks);
-    }
+    final readErrorMessage = AppLocalizations.of(context).addMediaFileReadError;
+    await uploadFileInChunks(
+      dio: dio,
+      file: file,
+      roomId: roomId,
+      onProgress: onProgress,
+      readErrorMessage: readErrorMessage,
+    );
+    ref.invalidate(roomDetailProvider(roomId));
+    if (context.mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _searchTorrents() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return;
-
-    setState(() {
-      _searching = true;
-      _searchResults = [];
+  Future<void> _onTorrent(WidgetRef ref, BuildContext context, String magnet) async {
+    final dio = ref.read(dioProvider);
+    await dio.post(ApiEndpoints.mediaTorrent, data: {
+      'room_id': roomId,
+      'magnet_link': magnet,
     });
-
-    try {
-      final dio = ref.read(dioProvider);
-      // Build URL manually: Dio's queryParameters has been observed to
-      // emit CP1251-encoded bytes for Cyrillic on Flutter Web. Uri.encodeQueryComponent
-      // is guaranteed UTF-8.
-      final resp = await dio.get(
-        '${ApiEndpoints.torrentSearch}?q=${Uri.encodeQueryComponent(query)}',
-      );
-      final list = (resp.data as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      if (mounted) setState(() => _searchResults = list);
-    } catch (e) {
-      if (mounted) {
-        final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.addMediaSearchError(e.toString()))),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _searching = false);
-    }
+    ref.invalidate(roomDetailProvider(roomId));
+    if (context.mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _selectTorrent(Map<String, dynamic> item) async {
-    final l = AppLocalizations.of(context);
-    final magnet = (item['magnet'] as String?)?.trim() ?? '';
-    if (magnet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.addMediaMagnetError)),
-      );
-      return;
-    }
-
-    setState(() => _resolvingMagnet = true);
-
-    try {
-      final dio = ref.read(dioProvider);
-      await dio.post(ApiEndpoints.mediaTorrent, data: {
-        'room_id': widget.roomId,
-        'magnet_link': magnet,
-      });
-
-      ref.invalidate(roomDetailProvider(widget.roomId));
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        setState(() => _resolvingMagnet = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.addMediaError(e.toString()))),
-        );
-      }
-    }
-  }
-
-  Future<void> _addMedia() async {
-    final l = AppLocalizations.of(context);
-    if (_selectedSource == 'upload' && _pickedFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.addMediaFileError)),
-      );
-      return;
-    }
-    if (_selectedSource != 'upload' && _urlController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.addMediaUrlError)),
-      );
-      return;
-    }
-
-    setState(() {
-      _loading = true;
-      _uploadProgress = 0;
+  Future<void> _onRutube(WidgetRef ref, BuildContext context, String url) async {
+    final dio = ref.read(dioProvider);
+    await dio.post(ApiEndpoints.mediaYoutube, data: {
+      'room_id': roomId,
+      'url': url,
     });
-
-    try {
-      final dio = ref.read(dioProvider);
-
-      if (_selectedSource == 'upload') {
-        await _uploadFile();
-      } else if (_selectedSource == 'youtube') {
-        await dio.post(ApiEndpoints.mediaYoutube, data: {
-          'room_id': widget.roomId,
-          'url': _urlController.text.trim(),
-        });
-      } else if (_selectedSource == 'torrent') {
-        await dio.post(ApiEndpoints.mediaTorrent, data: {
-          'room_id': widget.roomId,
-          'magnet_link': _urlController.text.trim(),
-        });
-      }
-
-      ref.invalidate(roomDetailProvider(widget.roomId));
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.addMediaError(e.toString()))),
-        );
-      }
-    }
+    ref.invalidate(roomDetailProvider(roomId));
+    if (context.mounted) Navigator.of(context).pop();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    final messages = MediaSourcePickerMessages(
+      sourceLabel: l.addMediaSourceLabel,
+      uploadHint: l.addMediaUploadHint,
+      fileFormats: null,
+      searchHint: l.addMediaSearchHint,
+      magnetHint: l.addMediaMagnetHint,
+      magnetButton: l.addMediaMagnetButton,
+      rutubeHint: l.addMediaRutubeHint,
+      submitButton: l.addMediaButton,
+      fileError: l.addMediaFileError,
+      urlError: l.addMediaUrlError,
+      magnetEmptyError: l.addMediaMagnetError,
+      searchError: l.addMediaSearchError,
+      genericError: l.addMediaError,
+    );
 
     return Container(
       padding: EdgeInsets.only(bottom: bottomPadding),
@@ -220,7 +87,8 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.divider,
                   borderRadius: BorderRadius.circular(2),
@@ -231,217 +99,18 @@ class _AddMediaSheetState extends ConsumerState<AddMediaSheet> {
             Text(
               l.addMediaTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: 24),
-            Text(
-              l.addMediaSourceLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            MediaSourcePicker(
+              messages: messages,
+              onUpload: (file, onProgress) =>
+                  _onUpload(ref, context, file, onProgress),
+              onTorrent: (magnet) => _onTorrent(ref, context, magnet),
+              onRutube: (url) => _onRutube(ref, context, url),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildChip(Icons.upload_file_rounded, l.sourceFile, 'upload'),
-                const SizedBox(width: 10),
-                _buildChip(Icons.link_rounded, l.sourceTorrent, 'torrent'),
-                const SizedBox(width: 10),
-                _buildChip(Icons.play_arrow_rounded, l.sourceRutube, 'youtube'),
-              ],
-            ),
-            const SizedBox(height: 24),
-            if (_selectedSource == 'upload') ...[
-              GestureDetector(
-                onTap: _loading ? null : _pickFile,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: _pickedFile != null ? AppColors.primary : AppColors.border,
-                    ),
-                  ),
-                  child: _pickedFile != null
-                      ? Column(
-                          children: [
-                            const Icon(Icons.movie_outlined, color: AppColors.primary, size: 24),
-                            const SizedBox(height: 8),
-                            Text(
-                              _pickedFile!.name,
-                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (_loading) ...[
-                              const SizedBox(height: 12),
-                              LinearProgressIndicator(
-                                value: _uploadProgress,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                                color: AppColors.primary,
-                                minHeight: 4,
-                              ),
-                              const SizedBox(height: 4),
-                              Text('${(_uploadProgress * 100).toInt()}%',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                            ],
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            const Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 24),
-                            const SizedBox(height: 8),
-                            Text(l.addMediaUploadHint,
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _addMedia,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(l.addMediaButton),
-                ),
-              ),
-            ] else if (_selectedSource == 'torrent') ...[
-              // Search field
-              TextField(
-                controller: _searchController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _searchTorrents(),
-                decoration: InputDecoration(
-                  hintText: l.addMediaSearchHint,
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
-                  suffixIcon: _searching
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.search_rounded, color: AppColors.primary),
-                          onPressed: _searchTorrents,
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Or paste magnet directly
-              TextField(
-                controller: _urlController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: l.addMediaMagnetHint,
-                  prefixIcon: const Icon(Icons.link_rounded, color: AppColors.textHint, size: 20),
-                ),
-              ),
-              if (_urlController.text.trim().isNotEmpty) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _addMedia,
-                    child: _loading
-                        ? const SizedBox(width: 20, height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(l.addMediaMagnetButton),
-                  ),
-                ),
-              ],
-              // Search results
-              if (_searchResults.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                if (_resolvingMagnet)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ))
-                else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _searchResults.length,
-                      separatorBuilder: (_, __) => const Divider(color: AppColors.divider, height: 1),
-                      itemBuilder: (context, index) {
-                        final r = _searchResults[index];
-                        return TorrentResultTile(
-                          result: r,
-                          onTap: () => _selectTorrent(r),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ] else ...[
-              TextField(
-                controller: _urlController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: l.addMediaRutubeHint,
-                  prefixIcon: const Icon(Icons.play_arrow_rounded, color: AppColors.textHint, size: 20),
-                ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _addMedia,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(l.addMediaButton),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChip(IconData icon, String label, String value) {
-    final selected = _selectedSource == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedSource = value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 22, color: selected ? AppColors.primary : AppColors.textSecondary),
-              const SizedBox(height: 6),
-              Text(label, style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
-              )),
-            ],
-          ),
         ),
       ),
     );

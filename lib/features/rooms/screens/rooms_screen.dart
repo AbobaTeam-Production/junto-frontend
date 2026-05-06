@@ -51,15 +51,14 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
               try {
                 await deleteRoom(ref, room.id);
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.roomsDeleteError(e.toString()))),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l.roomsDeleteError(e.toString()))),
+                );
               }
             },
             child: Text(l.roomsDeleteConfirm, style: const TextStyle(color: AppColors.danger)),
