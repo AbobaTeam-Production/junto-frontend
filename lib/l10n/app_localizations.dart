@@ -1105,6 +1105,102 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Я'**
   String get navProfile;
+
+  /// No description provided for @friendsScreenTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Друзья'**
+  String get friendsScreenTitle;
+
+  /// No description provided for @friendsTabFriends.
+  ///
+  /// In ru, this message translates to:
+  /// **'Друзья'**
+  String get friendsTabFriends;
+
+  /// No description provided for @friendsTabRequests.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заявки'**
+  String get friendsTabRequests;
+
+  /// No description provided for @friendsTabRequestsBadge.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заявки ({count})'**
+  String friendsTabRequestsBadge(int count);
+
+  /// No description provided for @friendsTabSearch.
+  ///
+  /// In ru, this message translates to:
+  /// **'Найти'**
+  String get friendsTabSearch;
+
+  /// No description provided for @friendsEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока никого'**
+  String get friendsEmpty;
+
+  /// No description provided for @friendsEmptyDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'Найдите друга по имени и отправьте заявку.'**
+  String get friendsEmptyDesc;
+
+  /// No description provided for @friendsRequestsEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заявок нет'**
+  String get friendsRequestsEmpty;
+
+  /// No description provided for @friendsSearchHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Имя пользователя'**
+  String get friendsSearchHint;
+
+  /// No description provided for @friendsSearchEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Никто не нашёлся'**
+  String get friendsSearchEmpty;
+
+  /// No description provided for @friendsActionAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добавить'**
+  String get friendsActionAdd;
+
+  /// No description provided for @friendsActionPending.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заявка отправлена'**
+  String get friendsActionPending;
+
+  /// No description provided for @friendsActionAccept.
+  ///
+  /// In ru, this message translates to:
+  /// **'Принять'**
+  String get friendsActionAccept;
+
+  /// No description provided for @friendsActionDecline.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отклонить'**
+  String get friendsActionDecline;
+
+  /// No description provided for @friendsActionRemove.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить'**
+  String get friendsActionRemove;
+
+  /// No description provided for @friendsRemoveConfirm.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить из друзей?'**
+  String get friendsRemoveConfirm;
 }
 
 class _AppLocalizationsDelegate

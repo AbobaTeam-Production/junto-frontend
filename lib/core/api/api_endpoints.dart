@@ -19,4 +19,12 @@ class ApiEndpoints {
   static const String torrentSearch = '/media/torrent/search/';
   static String mediaStatus(String id) => '/media/$id/status/';
   static String mediaTranscode(String id) => '/media/$id/transcode/';
+
+  // Social — friends + user search
+  static const String friends = '/friends/';
+  static const String friendRequests = '/friends/requests/';
+  static const String friendRequestSend = '/friends/request/';
+  static String friendAccept(int id) => '/friends/$id/accept/';
+  static String friendDelete(int id) => '/friends/$id/';
+  static const String userSearch = '/users/search/';
 }

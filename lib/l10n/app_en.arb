@@ -182,5 +182,22 @@
 
   "navHome": "Now",
   "navRooms": "Rooms",
-  "navProfile": "Me"
+  "navProfile": "Me",
+
+  "friendsScreenTitle": "Friends",
+  "friendsTabFriends": "Friends",
+  "friendsTabRequests": "Requests",
+  "friendsTabRequestsBadge": "Requests ({count})",
+  "friendsTabSearch": "Find",
+  "friendsEmpty": "No one yet",
+  "friendsEmptyDesc": "Search by username and send a request.",
+  "friendsRequestsEmpty": "No requests",
+  "friendsSearchHint": "Username",
+  "friendsSearchEmpty": "No matches",
+  "friendsActionAdd": "Add",
+  "friendsActionPending": "Request sent",
+  "friendsActionAccept": "Accept",
+  "friendsActionDecline": "Decline",
+  "friendsActionRemove": "Remove",
+  "friendsRemoveConfirm": "Remove from friends?"
 }

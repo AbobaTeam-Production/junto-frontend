@@ -74,7 +74,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ],
                     ),
                   ),
-                  Icon(Icons.tune_rounded, size: 22, color: AppColors.ink2),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(Icons.tune_rounded, size: 22, color: AppColors.ink2),
+                      if ((user?.pendingRequestsCount ?? 0) > 0)
+                        Positioned(
+                          right: -4, top: -4,
+                          child: Container(
+                            width: 10, height: 10,
+                            decoration: const BoxDecoration(
+                              color: AppColors.amber,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -90,6 +106,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 isGuest: isGuest,
                 sessionsCount: user?.sessionsCount ?? 0,
                 watchHours: user?.watchHours ?? 0,
+                friendsCount: user?.friendsCount ?? 0,
+                onFriendsTap: isGuest ? null : () => context.push('/friends'),
                 onEdit: isGuest
                     ? null
                     : () => showModalBottomSheet(
@@ -237,7 +255,9 @@ class _ProfileCard extends StatelessWidget {
   final bool isGuest;
   final int sessionsCount;
   final int watchHours;
+  final int friendsCount;
   final VoidCallback? onEdit;
+  final VoidCallback? onFriendsTap;
 
   const _ProfileCard({
     required this.name,
@@ -245,7 +265,9 @@ class _ProfileCard extends StatelessWidget {
     required this.isGuest,
     required this.sessionsCount,
     required this.watchHours,
+    required this.friendsCount,
     this.onEdit,
+    this.onFriendsTap,
   });
 
   @override
@@ -298,15 +320,23 @@ class _ProfileCard extends StatelessWidget {
           const SizedBox(height: 22),
           Builder(builder: (ctx) {
             final l = AppLocalizations.of(ctx);
-            // Friends count stays as a placeholder until Phase C lands the
-            // friendship model + endpoints.
             return Row(
               children: [
                 _Stat(value: '$sessionsCount', label: l.profileSessionsLabel),
                 const SizedBox(width: 28),
                 _Stat(value: '$watchHours', label: l.profileHoursLabel),
                 const SizedBox(width: 28),
-                _Stat(value: l.profileStatsPlaceholder, label: l.profileFriendsLabel),
+                InkWell(
+                  onTap: onFriendsTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: _Stat(
+                      value: '$friendsCount',
+                      label: l.profileFriendsLabel,
+                    ),
+                  ),
+                ),
               ],
             );
           }),

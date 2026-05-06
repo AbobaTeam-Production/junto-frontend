@@ -13,6 +13,8 @@ class AuthUser {
   final String? avatarUrl;
   final int sessionsCount;
   final int watchSeconds;
+  final int friendsCount;
+  final int pendingRequestsCount;
 
   const AuthUser({
     required this.id,
@@ -21,6 +23,8 @@ class AuthUser {
     this.avatarUrl,
     this.sessionsCount = 0,
     this.watchSeconds = 0,
+    this.friendsCount = 0,
+    this.pendingRequestsCount = 0,
   });
 
   bool get isGuest => username.startsWith('Гость_');
@@ -43,6 +47,9 @@ class AuthUser {
       avatarUrl: avatarUrl,
       sessionsCount: (json['sessions_count'] as num?)?.toInt() ?? 0,
       watchSeconds: (json['watch_seconds'] as num?)?.toInt() ?? 0,
+      friendsCount: (json['friends_count'] as num?)?.toInt() ?? 0,
+      pendingRequestsCount:
+          (json['pending_requests_count'] as num?)?.toInt() ?? 0,
     );
   }
 }

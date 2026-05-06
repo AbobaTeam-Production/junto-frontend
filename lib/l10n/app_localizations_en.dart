@@ -537,4 +537,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get navProfile => 'Me';
+
+  @override
+  String get friendsScreenTitle => 'Friends';
+
+  @override
+  String get friendsTabFriends => 'Friends';
+
+  @override
+  String get friendsTabRequests => 'Requests';
+
+  @override
+  String friendsTabRequestsBadge(int count) {
+    return 'Requests ($count)';
+  }
+
+  @override
+  String get friendsTabSearch => 'Find';
+
+  @override
+  String get friendsEmpty => 'No one yet';
+
+  @override
+  String get friendsEmptyDesc => 'Search by username and send a request.';
+
+  @override
+  String get friendsRequestsEmpty => 'No requests';
+
+  @override
+  String get friendsSearchHint => 'Username';
+
+  @override
+  String get friendsSearchEmpty => 'No matches';
+
+  @override
+  String get friendsActionAdd => 'Add';
+
+  @override
+  String get friendsActionPending => 'Request sent';
+
+  @override
+  String get friendsActionAccept => 'Accept';
+
+  @override
+  String get friendsActionDecline => 'Decline';
+
+  @override
+  String get friendsActionRemove => 'Remove';
+
+  @override
+  String get friendsRemoveConfirm => 'Remove from friends?';
 }

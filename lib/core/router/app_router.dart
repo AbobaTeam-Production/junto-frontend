@@ -9,6 +9,7 @@ import '../../features/auth/screens/register_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/rooms/screens/rooms_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/profile/screens/friends_screen.dart';
 import '../../features/shell/screens/shell_screen.dart';
 import '../../features/room/screens/room_screen.dart';
 
@@ -135,6 +136,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Friends — outside shell, pushed from Profile
+      GoRoute(
+        path: '/friends',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const FriendsScreen(),
+          transitionsBuilder: (context, animation, _, child) =>
+              SlideTransition(
+            position: Tween(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          ),
+        ),
       ),
 
       // Room — outside shell (full screen)

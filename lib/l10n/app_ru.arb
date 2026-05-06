@@ -212,5 +212,25 @@
 
   "navHome": "Сейчас",
   "navRooms": "Комнаты",
-  "navProfile": "Я"
+  "navProfile": "Я",
+
+  "friendsScreenTitle": "Друзья",
+  "friendsTabFriends": "Друзья",
+  "friendsTabRequests": "Заявки",
+  "friendsTabRequestsBadge": "Заявки ({count})",
+  "@friendsTabRequestsBadge": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "friendsTabSearch": "Найти",
+  "friendsEmpty": "Пока никого",
+  "friendsEmptyDesc": "Найдите друга по имени и отправьте заявку.",
+  "friendsRequestsEmpty": "Заявок нет",
+  "friendsSearchHint": "Имя пользователя",
+  "friendsSearchEmpty": "Никто не нашёлся",
+  "friendsActionAdd": "Добавить",
+  "friendsActionPending": "Заявка отправлена",
+  "friendsActionAccept": "Принять",
+  "friendsActionDecline": "Отклонить",
+  "friendsActionRemove": "Удалить",
+  "friendsRemoveConfirm": "Удалить из друзей?"
 }

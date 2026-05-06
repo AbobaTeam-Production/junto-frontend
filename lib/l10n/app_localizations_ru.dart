@@ -537,4 +537,54 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get navProfile => 'Я';
+
+  @override
+  String get friendsScreenTitle => 'Друзья';
+
+  @override
+  String get friendsTabFriends => 'Друзья';
+
+  @override
+  String get friendsTabRequests => 'Заявки';
+
+  @override
+  String friendsTabRequestsBadge(int count) {
+    return 'Заявки ($count)';
+  }
+
+  @override
+  String get friendsTabSearch => 'Найти';
+
+  @override
+  String get friendsEmpty => 'Пока никого';
+
+  @override
+  String get friendsEmptyDesc => 'Найдите друга по имени и отправьте заявку.';
+
+  @override
+  String get friendsRequestsEmpty => 'Заявок нет';
+
+  @override
+  String get friendsSearchHint => 'Имя пользователя';
+
+  @override
+  String get friendsSearchEmpty => 'Никто не нашёлся';
+
+  @override
+  String get friendsActionAdd => 'Добавить';
+
+  @override
+  String get friendsActionPending => 'Заявка отправлена';
+
+  @override
+  String get friendsActionAccept => 'Принять';
+
+  @override
+  String get friendsActionDecline => 'Отклонить';
+
+  @override
+  String get friendsActionRemove => 'Удалить';
+
+  @override
+  String get friendsRemoveConfirm => 'Удалить из друзей?';
 }
