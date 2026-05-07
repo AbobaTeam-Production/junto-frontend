@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
@@ -72,6 +73,20 @@ class VoiceChatNotifier extends StateNotifier<VoiceChatState> {
 
     // ignore: avoid_print
     print('JUNTO: voice.start() begin');
+
+    // Native: ask for RECORD_AUDIO before LiveKit tries to capture. The
+    // plugin doesn't surface a system prompt itself, so without this the
+    // first start() on a fresh install silently fails with a denied mic.
+    // On Web getUserMedia handles its own prompt, so we skip there.
+    if (!kIsWeb) {
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        // ignore: avoid_print
+        print('JUNTO: voice.start() mic permission denied: $status');
+        _starting = false;
+        return;
+      }
+    }
 
     // Force-register connectivity_plus before LiveKit transitively touches
     // it. dart2js tree-shaker drops the plugin from the bundle on Web if
