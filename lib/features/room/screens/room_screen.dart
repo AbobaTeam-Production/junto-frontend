@@ -990,9 +990,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         AnimatedCrossFade(
           firstChild: _buildControls(),
           secondChild: const SizedBox.shrink(),
-          crossFadeState: _showControls
-              ? CrossFadeState.showFirst
-              : CrossFadeState.showSecond,
+          crossFadeState:
+              (_showControls && !_collapseForChatKeyboard(context))
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
           duration: const Duration(milliseconds: 200),
         ),
         _buildPresenceRow(),
@@ -1028,7 +1029,19 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     );
   }
 
+  /// True when the chat tab is active AND the soft keyboard is up. We
+  /// use it to collapse decorative rows above the chat (seats row,
+  /// voice/reactions controls) so the chat input has room without an
+  /// overflow strip — those widgets are visual noise while typing.
+  bool _collapseForChatKeyboard(BuildContext ctx) {
+    if (_tabController.index != 0) return false;
+    return MediaQuery.of(ctx).viewInsets.bottom > 0;
+  }
+
   Widget _buildPresenceRow() {
+    if (_collapseForChatKeyboard(context)) {
+      return const SizedBox(height: 4);
+    }
     final l = AppLocalizations.of(context);
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
@@ -1051,11 +1064,16 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
           final userId = user['id']?.toString() ?? '';
           final isOnline = online.containsKey(name);
           final isYou = currentUser?.username == name;
+          final rawAvatar = user['avatar_url'] as String?;
+          final avatarUrl = (rawAvatar != null && rawAvatar.startsWith('/'))
+              ? '${ServerConfig.mediaBaseUrl}$rawAvatar'
+              : rawAvatar;
           seats.add(_Seat(
             name: isYou ? '$name (ты)' : name,
             online: isOnline,
             speaking: speaking.contains(userId),
             hue: name.hashCode.abs() % 360,
+            avatarUrl: avatarUrl,
           ));
         }
 
@@ -1105,7 +1123,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            JuntoAvatar(name: seat.name, size: 36, hue: seat.hue),
+            JuntoAvatar(
+              name: seat.name,
+              size: 36,
+              hue: seat.hue,
+              imageUrl: seat.avatarUrl,
+            ),
             const SizedBox(height: 6),
             Text(
               seat.name,
@@ -1706,11 +1729,13 @@ class _Seat {
   final bool online;
   final bool speaking;
   final int hue;
+  final String? avatarUrl;
   const _Seat({
     required this.name,
     required this.online,
     required this.speaking,
     required this.hue,
+    this.avatarUrl,
   });
 }
 

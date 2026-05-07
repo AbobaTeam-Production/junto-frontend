@@ -120,6 +120,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 name: displayName,
                 handle: handle,
                 isGuest: isGuest,
+                avatarUrl: user?.avatarUrl,
                 sessionsCount: user?.sessionsCount ?? 0,
                 watchHours: user?.watchHours ?? 0,
                 friendsCount: user?.friendsCount ?? 0,
@@ -287,6 +288,7 @@ class _ProfileCard extends StatelessWidget {
   final String name;
   final String handle;
   final bool isGuest;
+  final String? avatarUrl;
   final int sessionsCount;
   final int watchHours;
   final int friendsCount;
@@ -301,6 +303,7 @@ class _ProfileCard extends StatelessWidget {
     required this.sessionsCount,
     required this.watchHours,
     required this.friendsCount,
+    this.avatarUrl,
     this.onEdit,
     this.onFriendsTap,
     this.onSessionsTap,
@@ -320,7 +323,13 @@ class _ProfileCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              JuntoAvatar(name: name, size: 64, hue: 75, online: !isGuest),
+              JuntoAvatar(
+                name: name,
+                size: 64,
+                hue: 75,
+                online: !isGuest,
+                imageUrl: avatarUrl,
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

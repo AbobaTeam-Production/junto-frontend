@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/server_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
@@ -40,7 +41,12 @@ class ParticipantList extends ConsumerWidget {
             final member = members[index] as Map<String, dynamic>;
             final user = member['user'] as Map<String, dynamic>;
             final username = user['username'] as String? ?? '';
-            final avatarUrl = user['avatar_url'] as String?;
+            // Backend returns relative '/media/avatars/...' — promote to
+            // a full URL so NetworkImage can resolve it.
+            final rawAvatar = user['avatar_url'] as String?;
+            final avatarUrl = (rawAvatar != null && rawAvatar.startsWith('/'))
+                ? '${ServerConfig.mediaBaseUrl}$rawAvatar'
+                : rawAvatar;
             final isHost = member['is_host'] as bool? ?? false;
             final isMe = currentUser?.username == username;
             final isOnline = onlineUsers.containsKey(username);

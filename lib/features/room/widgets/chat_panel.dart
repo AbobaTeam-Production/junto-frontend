@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/server_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
@@ -44,7 +45,9 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     });
   }
 
-  /// Build a map of username → avatar_url from room detail data.
+  /// Build a map of username → fully-qualified avatar URL from room
+  /// detail data. The backend ships relative paths (`/media/avatars/...`)
+  /// — we prefix `mediaBaseUrl` so a NetworkImage can resolve them.
   Map<String, String?> _buildAvatarMap(AsyncValue<Map<String, dynamic>> roomAsync) {
     final avatarMap = <String, String?>{};
     roomAsync.whenData((roomData) {
@@ -53,11 +56,16 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         final m = member as Map<String, dynamic>;
         final user = m['user'] as Map<String, dynamic>;
         final username = user['username'] as String? ?? '';
-        final avatarUrl = user['avatar_url'] as String?;
-        avatarMap[username] = avatarUrl;
+        avatarMap[username] = _resolveAvatarUrl(user['avatar_url'] as String?);
       }
     });
     return avatarMap;
+  }
+
+  static String? _resolveAvatarUrl(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('/')) return '${ServerConfig.mediaBaseUrl}$raw';
+    return raw;
   }
 
   @override
@@ -111,7 +119,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         ),
 
         // Input area — respect bottom safe-area inset (gesture nav bar /
-        // rounded corner cutouts) so the send button isn't clipped.
+        // rounded corner cutouts) so the send button isn't clipped. The
+        // soft keyboard is handled by Scaffold.resizeToAvoidBottomInset
+        // upstream; we don't add viewInsets.bottom here or it would
+        // double-count and overflow.
         Container(
           padding: EdgeInsets.fromLTRB(
             12,

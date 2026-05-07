@@ -55,7 +55,15 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   _CircleIconButton(icon: Icons.notifications_none_rounded, onTap: () {}),
                   const SizedBox(width: 10),
-                  JuntoAvatar(name: firstName, size: 38, hue: 75),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: JuntoAvatar(
+                      name: firstName,
+                      size: 38,
+                      hue: 75,
+                      imageUrl: user?.avatarUrl,
+                    ),
+                  ),
                 ],
               ),
             ),

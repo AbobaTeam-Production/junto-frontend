@@ -217,7 +217,7 @@ class _FriendRow extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          JuntoAvatar(name: friendship.peer.username, size: 40),
+          JuntoAvatar(name: friendship.peer.username, size: 40, imageUrl: friendship.peer.avatarUrl),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -280,7 +280,7 @@ class _RequestRow extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          JuntoAvatar(name: friendship.peer.username, size: 40),
+          JuntoAvatar(name: friendship.peer.username, size: 40, imageUrl: friendship.peer.avatarUrl),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -365,7 +365,7 @@ class _SearchRowState extends ConsumerState<_SearchRow> {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          JuntoAvatar(name: widget.hit.peer.username, size: 40),
+          JuntoAvatar(name: widget.hit.peer.username, size: 40, imageUrl: widget.hit.peer.avatarUrl),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

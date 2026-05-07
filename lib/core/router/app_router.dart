@@ -12,6 +12,7 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/friends_screen.dart';
 import '../../features/shell/screens/shell_screen.dart';
 import '../../features/room/screens/room_screen.dart';
+import '../../features/splash/splash_screen.dart';
 
 /// Bridges Riverpod → GoRouter: notifies GoRouter to re-evaluate redirects
 /// whenever auth state changes, without recreating the router.
@@ -31,14 +32,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final seenOnboarding = tokenService.onboardingSeen;
 
   return GoRouter(
-    initialLocation: seenOnboarding ? '/login' : '/onboarding',
+    initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
       final status = ref.read(authStateProvider).status;
       final path = state.uri.path;
 
-      // Don't redirect while auth state is unknown (still loading)
-      if (status == AuthStatus.unknown) return null;
+      // While auth is still loading we park on /splash. Cold-start used to
+      // briefly render /login here because tryRestoreSession() resolves
+      // async — the splash route absorbs that window.
+      if (status == AuthStatus.unknown) {
+        return path == '/splash' ? null : '/splash';
+      }
+
+      // Auth is now resolved — bail out of /splash to the right destination.
+      if (path == '/splash') {
+        if (status == AuthStatus.authenticated) return '/home';
+        return seenOnboarding ? '/login' : '/onboarding';
+      }
 
       final isAuthRoute =
           path == '/login' || path == '/register' || path == '/onboarding';
@@ -58,6 +69,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Splash — covers the auth-restore window. The redirect above
+      // bounces away from here as soon as AuthStatus resolves.
+      GoRoute(
+        path: '/splash',
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: SplashScreen(),
+        ),
+      ),
+
       // Onboarding — first launch
       GoRoute(
         path: '/onboarding',

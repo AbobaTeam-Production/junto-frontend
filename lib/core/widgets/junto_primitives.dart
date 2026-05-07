@@ -109,12 +109,18 @@ class _StripePainter extends CustomPainter {
       old.base != base || old.stripe != stripe;
 }
 
-// Avatar — single letter on a solid warm-hue circle. No gradients.
+// Avatar — single letter on a solid warm-hue circle, OR a network photo
+// with the initial as a fallback (used while loading or on error).
 class JuntoAvatar extends StatelessWidget {
   final String name;
   final double size;
   final int hue; // 0-360, picks a warm-tinted color
   final bool online;
+
+  /// Optional photo URL. When non-null and resolvable, replaces the
+  /// initial. The colour-circle stays as a backdrop so a slow / failed
+  /// load still looks like an avatar instead of a hole.
+  final String? imageUrl;
 
   const JuntoAvatar({
     super.key,
@@ -122,6 +128,7 @@ class JuntoAvatar extends StatelessWidget {
     this.size = 36,
     this.hue = 75,
     this.online = false,
+    this.imageUrl,
   });
 
   String get _initial {
@@ -139,6 +146,8 @@ class JuntoAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = imageUrl;
+    final hasImage = url != null && url.isNotEmpty;
     return SizedBox(
       width: size,
       height: size,
@@ -151,18 +160,29 @@ class JuntoAvatar extends StatelessWidget {
             decoration: BoxDecoration(
               color: _bgColor,
               shape: BoxShape.circle,
+              image: hasImage
+                  ? DecorationImage(
+                      image: NetworkImage(url),
+                      fit: BoxFit.cover,
+                      // onError just swallows; the initial stays visible
+                      // through the transparent image area.
+                      onError: (_, _) {},
+                    )
+                  : null,
             ),
             alignment: Alignment.center,
-            child: Text(
-              _initial,
-              style: AppTheme.display(
-                size: size * 0.42,
-                color: const Color(0xFFFAF7F0),
-                weight: FontWeight.w600,
-                letterSpacing: -0.3,
-                height: 1,
-              ),
-            ),
+            child: hasImage
+                ? null
+                : Text(
+                    _initial,
+                    style: AppTheme.display(
+                      size: size * 0.42,
+                      color: const Color(0xFFFAF7F0),
+                      weight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                      height: 1,
+                    ),
+                  ),
           ),
           if (online)
             Positioned(
