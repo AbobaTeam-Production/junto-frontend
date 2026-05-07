@@ -133,6 +133,43 @@
   "profileFriendsLabel": "friends",
   "profileStatsPlaceholder": "—",
 
+  "sessionsHistoryTitle": "Recent sessions",
+  "sessionsHistoryEmpty": "No sessions yet",
+  "sessionsHistoryEnter": "Enter",
+  "sessionsHistoryRoomTitle": "Room {code}",
+  "@sessionsHistoryRoomTitle": {
+    "placeholders": { "code": { "type": "String" } }
+  },
+  "sessionsHistoryDurationHours": "{h}h {m}m",
+  "@sessionsHistoryDurationHours": {
+    "placeholders": {
+      "h": { "type": "int" },
+      "m": { "type": "int" }
+    }
+  },
+  "sessionsHistoryDurationMinutes": "{m}m",
+  "@sessionsHistoryDurationMinutes": {
+    "placeholders": { "m": { "type": "int" } }
+  },
+  "sessionsHistoryDurationSeconds": "{s}s",
+  "@sessionsHistoryDurationSeconds": {
+    "placeholders": { "s": { "type": "int" } }
+  },
+  "sessionsHistoryAgoJustNow": "just now",
+  "sessionsHistoryAgoMinutes": "{n} min ago",
+  "@sessionsHistoryAgoMinutes": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryAgoHours": "{n}h ago",
+  "@sessionsHistoryAgoHours": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryAgoDays": "{n}d ago",
+  "@sessionsHistoryAgoDays": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryError": "Failed to load",
+
   "editProfileTitle": "Edit profile",
   "editProfileUsername": "Username",
   "editProfileEmail": "Email",

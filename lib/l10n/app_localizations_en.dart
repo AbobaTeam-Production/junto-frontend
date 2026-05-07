@@ -391,6 +391,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileStatsPlaceholder => '—';
 
   @override
+  String get sessionsHistoryTitle => 'Recent sessions';
+
+  @override
+  String get sessionsHistoryEmpty => 'No sessions yet';
+
+  @override
+  String get sessionsHistoryEnter => 'Enter';
+
+  @override
+  String sessionsHistoryRoomTitle(String code) {
+    return 'Room $code';
+  }
+
+  @override
+  String sessionsHistoryDurationHours(int h, int m) {
+    return '${h}h ${m}m';
+  }
+
+  @override
+  String sessionsHistoryDurationMinutes(int m) {
+    return '${m}m';
+  }
+
+  @override
+  String sessionsHistoryDurationSeconds(int s) {
+    return '${s}s';
+  }
+
+  @override
+  String get sessionsHistoryAgoJustNow => 'just now';
+
+  @override
+  String sessionsHistoryAgoMinutes(int n) {
+    return '$n min ago';
+  }
+
+  @override
+  String sessionsHistoryAgoHours(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String sessionsHistoryAgoDays(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get sessionsHistoryError => 'Failed to load';
+
+  @override
   String get editProfileTitle => 'Edit profile';
 
   @override

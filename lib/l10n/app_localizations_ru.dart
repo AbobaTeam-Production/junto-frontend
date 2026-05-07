@@ -391,6 +391,56 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileStatsPlaceholder => '—';
 
   @override
+  String get sessionsHistoryTitle => 'Последние сеансы';
+
+  @override
+  String get sessionsHistoryEmpty => 'Пока ни одного сеанса';
+
+  @override
+  String get sessionsHistoryEnter => 'Зайти';
+
+  @override
+  String sessionsHistoryRoomTitle(String code) {
+    return 'Комната $code';
+  }
+
+  @override
+  String sessionsHistoryDurationHours(int h, int m) {
+    return '$h ч $m мин';
+  }
+
+  @override
+  String sessionsHistoryDurationMinutes(int m) {
+    return '$m мин';
+  }
+
+  @override
+  String sessionsHistoryDurationSeconds(int s) {
+    return '$s с';
+  }
+
+  @override
+  String get sessionsHistoryAgoJustNow => 'только что';
+
+  @override
+  String sessionsHistoryAgoMinutes(int n) {
+    return '$n мин назад';
+  }
+
+  @override
+  String sessionsHistoryAgoHours(int n) {
+    return '$n ч назад';
+  }
+
+  @override
+  String sessionsHistoryAgoDays(int n) {
+    return '$n дн назад';
+  }
+
+  @override
+  String get sessionsHistoryError => 'Не удалось загрузить';
+
+  @override
   String get editProfileTitle => 'Редактировать профиль';
 
   @override

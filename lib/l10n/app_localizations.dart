@@ -830,6 +830,78 @@ abstract class AppLocalizations {
   /// **'—'**
   String get profileStatsPlaceholder;
 
+  /// No description provided for @sessionsHistoryTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Последние сеансы'**
+  String get sessionsHistoryTitle;
+
+  /// No description provided for @sessionsHistoryEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока ни одного сеанса'**
+  String get sessionsHistoryEmpty;
+
+  /// No description provided for @sessionsHistoryEnter.
+  ///
+  /// In ru, this message translates to:
+  /// **'Зайти'**
+  String get sessionsHistoryEnter;
+
+  /// No description provided for @sessionsHistoryRoomTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Комната {code}'**
+  String sessionsHistoryRoomTitle(String code);
+
+  /// No description provided for @sessionsHistoryDurationHours.
+  ///
+  /// In ru, this message translates to:
+  /// **'{h} ч {m} мин'**
+  String sessionsHistoryDurationHours(int h, int m);
+
+  /// No description provided for @sessionsHistoryDurationMinutes.
+  ///
+  /// In ru, this message translates to:
+  /// **'{m} мин'**
+  String sessionsHistoryDurationMinutes(int m);
+
+  /// No description provided for @sessionsHistoryDurationSeconds.
+  ///
+  /// In ru, this message translates to:
+  /// **'{s} с'**
+  String sessionsHistoryDurationSeconds(int s);
+
+  /// No description provided for @sessionsHistoryAgoJustNow.
+  ///
+  /// In ru, this message translates to:
+  /// **'только что'**
+  String get sessionsHistoryAgoJustNow;
+
+  /// No description provided for @sessionsHistoryAgoMinutes.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n} мин назад'**
+  String sessionsHistoryAgoMinutes(int n);
+
+  /// No description provided for @sessionsHistoryAgoHours.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n} ч назад'**
+  String sessionsHistoryAgoHours(int n);
+
+  /// No description provided for @sessionsHistoryAgoDays.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n} дн назад'**
+  String sessionsHistoryAgoDays(int n);
+
+  /// No description provided for @sessionsHistoryError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось загрузить'**
+  String get sessionsHistoryError;
+
   /// No description provided for @editProfileTitle.
   ///
   /// In ru, this message translates to:

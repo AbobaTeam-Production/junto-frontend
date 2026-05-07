@@ -148,6 +148,43 @@
   "profileFriendsLabel": "друзей",
   "profileStatsPlaceholder": "—",
 
+  "sessionsHistoryTitle": "Последние сеансы",
+  "sessionsHistoryEmpty": "Пока ни одного сеанса",
+  "sessionsHistoryEnter": "Зайти",
+  "sessionsHistoryRoomTitle": "Комната {code}",
+  "@sessionsHistoryRoomTitle": {
+    "placeholders": { "code": { "type": "String" } }
+  },
+  "sessionsHistoryDurationHours": "{h} ч {m} мин",
+  "@sessionsHistoryDurationHours": {
+    "placeholders": {
+      "h": { "type": "int" },
+      "m": { "type": "int" }
+    }
+  },
+  "sessionsHistoryDurationMinutes": "{m} мин",
+  "@sessionsHistoryDurationMinutes": {
+    "placeholders": { "m": { "type": "int" } }
+  },
+  "sessionsHistoryDurationSeconds": "{s} с",
+  "@sessionsHistoryDurationSeconds": {
+    "placeholders": { "s": { "type": "int" } }
+  },
+  "sessionsHistoryAgoJustNow": "только что",
+  "sessionsHistoryAgoMinutes": "{n} мин назад",
+  "@sessionsHistoryAgoMinutes": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryAgoHours": "{n} ч назад",
+  "@sessionsHistoryAgoHours": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryAgoDays": "{n} дн назад",
+  "@sessionsHistoryAgoDays": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "sessionsHistoryError": "Не удалось загрузить",
+
   "editProfileTitle": "Редактировать профиль",
   "editProfileUsername": "Имя пользователя",
   "editProfileEmail": "Email",

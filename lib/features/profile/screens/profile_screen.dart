@@ -11,6 +11,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../widgets/edit_profile_sheet.dart';
 import '../widgets/language_picker_sheet.dart';
 import '../widgets/mic_picker_sheet.dart';
+import '../widgets/sessions_history_sheet.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -123,6 +124,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 watchHours: user?.watchHours ?? 0,
                 friendsCount: user?.friendsCount ?? 0,
                 onFriendsTap: isGuest ? null : () => context.push('/friends'),
+                onSessionsTap: (isGuest || user.sessionsCount == 0)
+                    ? null
+                    : () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const SessionsHistorySheet(),
+                        ),
                 onEdit: isGuest
                     ? null
                     : () => showModalBottomSheet(
@@ -283,6 +292,7 @@ class _ProfileCard extends StatelessWidget {
   final int friendsCount;
   final VoidCallback? onEdit;
   final VoidCallback? onFriendsTap;
+  final VoidCallback? onSessionsTap;
 
   const _ProfileCard({
     required this.name,
@@ -293,6 +303,7 @@ class _ProfileCard extends StatelessWidget {
     required this.friendsCount,
     this.onEdit,
     this.onFriendsTap,
+    this.onSessionsTap,
   });
 
   @override
@@ -347,7 +358,17 @@ class _ProfileCard extends StatelessWidget {
             final l = AppLocalizations.of(ctx);
             return Row(
               children: [
-                _Stat(value: '$sessionsCount', label: l.profileSessionsLabel),
+                InkWell(
+                  onTap: onSessionsTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: _Stat(
+                      value: '$sessionsCount',
+                      label: l.profileSessionsLabel,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 28),
                 _Stat(value: '$watchHours', label: l.profileHoursLabel),
                 const SizedBox(width: 28),

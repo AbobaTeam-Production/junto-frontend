@@ -32,4 +32,7 @@ class ApiEndpoints {
   static const String userDevices = '/users/devices/';
   static const String userDevicesTestPush = '/users/devices/test-push/';
   static String userDeviceDelete(int id) => '/users/devices/$id/';
+
+  // Watch session history (paginated)
+  static const String profileSessions = '/profile/sessions/';
 }
