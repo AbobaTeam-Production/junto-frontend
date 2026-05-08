@@ -185,6 +185,105 @@
   },
   "sessionsHistoryError": "Не удалось загрузить",
 
+  "navRecs": "Подборки",
+
+  "recsFeedDateLabel": "{date} · {time}",
+  "@recsFeedDateLabel": {
+    "placeholders": {
+      "date": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "recsFeedTitle": "Что посмотреть",
+  "recsFeedTitleAccent": "вечером?",
+  "recsFeedFreeNow": "Сейчас в сети",
+  "recsFeedFreeCount": "{n} в сети",
+  "@recsFeedFreeCount": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedTopMatch": "Топ-совпадение",
+  "recsFeedFriendWantsToWatch": "{name} хочет посмотреть",
+  "@recsFeedFriendWantsToWatch": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "recsFeedMoodsLabel": "По настроению",
+  "recsFeedTopKpLabel": "Высокий рейтинг КиноПоиска",
+  "recsFeedMatchPercent": "{n}% совпадение",
+  "@recsFeedMatchPercent": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedFriendsLikeIt": "понравится {n}",
+  "@recsFeedFriendsLikeIt": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedInvite": "Позвать",
+  "recsFeedEmpty": "Пока пусто. Добавьте подборки в админке.",
+  "recsFeedMoodMoviesCount": "{n} фильмов",
+  "@recsFeedMoodMoviesCount": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+
+  "recsPresenceFree": "в сети",
+  "recsPresenceBusy": "в комнате",
+  "recsPresenceIdle": "не в сети",
+
+  "recsMatchHeader": "совпадение вкусов",
+  "recsMatchPairLabel": "Ты и {name}",
+  "@recsMatchPairLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "recsMatchOverlapStat": "{percent}% общих вкусов · {count} совпадений",
+  "@recsMatchOverlapStat": {
+    "placeholders": {
+      "percent": { "type": "int" },
+      "count":   { "type": "int" }
+    }
+  },
+  "recsMatchSharedTags": "Любите оба",
+  "recsMatchListLabel": "Рекомендуем вдвоём",
+  "recsMatchInsufficient": "Соберите больше истории — пересечения появятся, когда у каждого будет 3+ просмотра.",
+  "recsMatchCta": "Создать комнату с {name}",
+  "@recsMatchCta": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "recsMoodHeader": "Настроение",
+  "recsMoodTitle": "Сегодня хочется",
+  "recsMoodTitleAccent": "{mood}.",
+  "@recsMoodTitleAccent": {
+    "placeholders": { "mood": { "type": "String" } }
+  },
+  "recsMoodEmpty": "В этой подборке пока пусто",
+
+  "recsTitleMatchHeader": "{percent}% совпадение",
+  "@recsTitleMatchHeader": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "recsTitleWhy": "Почему рекомендуем",
+  "recsTitleWillLike": "Понравится",
+  "recsTitleCta": "Позвать {names}",
+  "@recsTitleCta": {
+    "placeholders": { "names": { "type": "String" } }
+  },
+  "recsTitleCtaJoinSelf": "Создать комнату",
+  "recsTitleIntentAdd": "Хочу посмотреть",
+  "recsTitleIntentRemove": "Передумал",
+
+  "onboardingTagTogether": "01 — Together",
+  "onboardingTagOneRoom": "02 — В одной комнате",
+  "onboardingTagAnySource": "03 — Любой источник",
+  "onboardingSourceTagsLine": "FILES · TORRENT · RUTUBE · VOICE",
+  "onboardingScreenSubtitle": "«Мы в одной комнате.»",
+  "onboardingSourceFile": "Файл",
+  "onboardingSourceFileExt": ".mp4 · .mkv\n.webm · .mov",
+  "onboardingSourceFileBadge": "Самое популярное",
+  "onboardingSourceTorrent": "Торрент",
+  "onboardingSourceTorrentExt": ".torrent / magnet",
+  "onboardingSourceRutube": "Rutube",
+  "onboardingSourceRutubeExt": "rutube.ru/...",
+  "onboardingSourceStream": "Стрим",
+  "onboardingSourceStreamExt": "HLS / m3u8",
+
   "editProfileTitle": "Редактировать профиль",
   "editProfileUsername": "Имя пользователя",
   "editProfileEmail": "Email",

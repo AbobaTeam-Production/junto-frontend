@@ -14,6 +14,7 @@ class ShellScreen extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final items = [
       _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: l.navHome),
+      _NavItem(icon: Icons.auto_awesome_outlined, activeIcon: Icons.auto_awesome_rounded, label: l.navRecs),
       _NavItem(icon: Icons.live_tv_outlined, activeIcon: Icons.live_tv_rounded, label: l.navRooms),
       _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: l.navProfile),
     ];

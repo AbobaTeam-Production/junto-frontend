@@ -441,6 +441,181 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsHistoryError => 'Failed to load';
 
   @override
+  String get navRecs => 'Picks';
+
+  @override
+  String recsFeedDateLabel(String date, String time) {
+    return '$date · $time';
+  }
+
+  @override
+  String get recsFeedTitle => 'What to watch';
+
+  @override
+  String get recsFeedTitleAccent => 'tonight?';
+
+  @override
+  String get recsFeedFreeNow => 'Online now';
+
+  @override
+  String recsFeedFreeCount(int n) {
+    return '$n online';
+  }
+
+  @override
+  String get recsFeedTopMatch => 'Top match';
+
+  @override
+  String recsFeedFriendWantsToWatch(String name) {
+    return '$name wants to watch';
+  }
+
+  @override
+  String get recsFeedMoodsLabel => 'By mood';
+
+  @override
+  String get recsFeedTopKpLabel => 'Top-rated on KinoPoisk';
+
+  @override
+  String recsFeedMatchPercent(int n) {
+    return '$n% match';
+  }
+
+  @override
+  String recsFeedFriendsLikeIt(int n) {
+    return '$n would love it';
+  }
+
+  @override
+  String get recsFeedInvite => 'Invite';
+
+  @override
+  String get recsFeedEmpty => 'Empty for now. Add lists in the admin.';
+
+  @override
+  String recsFeedMoodMoviesCount(int n) {
+    return '$n films';
+  }
+
+  @override
+  String get recsPresenceFree => 'online';
+
+  @override
+  String get recsPresenceBusy => 'in a room';
+
+  @override
+  String get recsPresenceIdle => 'offline';
+
+  @override
+  String get recsMatchHeader => 'taste overlap';
+
+  @override
+  String recsMatchPairLabel(String name) {
+    return 'You and $name';
+  }
+
+  @override
+  String recsMatchOverlapStat(int percent, int count) {
+    return '$percent% shared taste · $count overlaps';
+  }
+
+  @override
+  String get recsMatchSharedTags => 'You both love';
+
+  @override
+  String get recsMatchListLabel => 'Recommended for both';
+
+  @override
+  String get recsMatchInsufficient =>
+      'Build up history first — overlaps appear once each of you has 3+ views.';
+
+  @override
+  String recsMatchCta(String name) {
+    return 'Start a room with $name';
+  }
+
+  @override
+  String get recsMoodHeader => 'Mood';
+
+  @override
+  String get recsMoodTitle => 'Tonight feels like';
+
+  @override
+  String recsMoodTitleAccent(String mood) {
+    return '$mood.';
+  }
+
+  @override
+  String get recsMoodEmpty => 'This list is empty';
+
+  @override
+  String recsTitleMatchHeader(int percent) {
+    return '$percent% match';
+  }
+
+  @override
+  String get recsTitleWhy => 'Why we recommend';
+
+  @override
+  String get recsTitleWillLike => 'Will love it';
+
+  @override
+  String recsTitleCta(String names) {
+    return 'Invite $names';
+  }
+
+  @override
+  String get recsTitleCtaJoinSelf => 'Start a room';
+
+  @override
+  String get recsTitleIntentAdd => 'Want to watch';
+
+  @override
+  String get recsTitleIntentRemove => 'Never mind';
+
+  @override
+  String get onboardingTagTogether => '01 — Together';
+
+  @override
+  String get onboardingTagOneRoom => '02 — One room';
+
+  @override
+  String get onboardingTagAnySource => '03 — Any source';
+
+  @override
+  String get onboardingSourceTagsLine => 'FILES · TORRENT · RUTUBE · VOICE';
+
+  @override
+  String get onboardingScreenSubtitle => '“We\'re in the same room.”';
+
+  @override
+  String get onboardingSourceFile => 'File';
+
+  @override
+  String get onboardingSourceFileExt => '.mp4 · .mkv\n.webm · .mov';
+
+  @override
+  String get onboardingSourceFileBadge => 'Most popular';
+
+  @override
+  String get onboardingSourceTorrent => 'Torrent';
+
+  @override
+  String get onboardingSourceTorrentExt => '.torrent / magnet';
+
+  @override
+  String get onboardingSourceRutube => 'Rutube';
+
+  @override
+  String get onboardingSourceRutubeExt => 'rutube.ru/...';
+
+  @override
+  String get onboardingSourceStream => 'Stream';
+
+  @override
+  String get onboardingSourceStreamExt => 'HLS / m3u8';
+
+  @override
   String get editProfileTitle => 'Edit profile';
 
   @override

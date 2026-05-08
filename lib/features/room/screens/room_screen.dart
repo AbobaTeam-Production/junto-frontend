@@ -19,7 +19,9 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/room_ws_provider.dart';
 import '../../../core/providers/voice_chat_provider.dart';
 import '../../../core/utils/clock_sync.dart';
+import '../../recs/providers/recs_provider.dart';
 import '../../rooms/providers/room_providers.dart';
+import '../widgets/add_media_sheet.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/participant_list.dart';
 import '../widgets/queue_panel.dart';
@@ -101,7 +103,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
       });
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeHandleRecsHandoff();
+      if (!mounted) return;
       // Force fresh fetch of room data (avoid stale cache from previous visit)
       ref.invalidate(roomDetailProvider(widget.roomId));
 
@@ -193,6 +197,40 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
         },
       );
     });
+  }
+
+  /// One-shot handler for the recs → room hand-off. The recs Title
+  /// screen parks a `PendingRecsRoom` before navigating here; we read
+  /// it on first frame and either toast (auto-attached torrent) or
+  /// open AddMediaSheet pre-filled with the title (no auto-attach).
+  Future<void> _maybeHandleRecsHandoff() async {
+    final pending = ref.read(pendingRecsRoomProvider);
+    if (pending == null || pending.roomId != widget.roomId) return;
+    // Consume immediately so re-entering the room doesn't re-fire.
+    ref.read(pendingRecsRoomProvider.notifier).state = null;
+    if (!mounted) return;
+
+    if (pending.mediaAttached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Готовим торрент: ${pending.movieTitle}'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // Couldn't auto-attach — open AddMediaSheet pre-filled with the
+    // movie title so the host doesn't re-type it.
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddMediaSheet(
+        roomId: widget.roomId,
+        initialTorrentQuery: pending.movieTitle,
+      ),
+    );
   }
 
   @override

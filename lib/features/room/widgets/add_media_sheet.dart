@@ -11,7 +11,16 @@ import '../../../l10n/app_localizations.dart';
 class AddMediaSheet extends ConsumerWidget {
   final String roomId;
 
-  const AddMediaSheet({super.key, required this.roomId});
+  /// When non-empty, the sheet opens on the Torrent tab with this
+  /// query pre-filled and the search auto-fired. Used by the recs
+  /// hand-off so the host doesn't have to re-type the movie title.
+  final String? initialTorrentQuery;
+
+  const AddMediaSheet({
+    super.key,
+    required this.roomId,
+    this.initialTorrentQuery,
+  });
 
   Future<void> _onUpload(
     WidgetRef ref,
@@ -105,6 +114,7 @@ class AddMediaSheet extends ConsumerWidget {
             const SizedBox(height: 24),
             MediaSourcePicker(
               messages: messages,
+              initialTorrentQuery: initialTorrentQuery,
               onUpload: (file, onProgress) =>
                   _onUpload(ref, context, file, onProgress),
               onTorrent: (magnet) => _onTorrent(ref, context, magnet),

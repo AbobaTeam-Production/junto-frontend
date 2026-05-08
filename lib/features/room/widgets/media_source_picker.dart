@@ -89,12 +89,17 @@ class MediaSourcePicker extends ConsumerStatefulWidget {
   final SourceTorrentHandler onTorrent;
   final SourceRutubeHandler onRutube;
 
+  /// When set, the picker opens on the Torrent tab with this query
+  /// pre-filled in the search field and the search fired immediately.
+  final String? initialTorrentQuery;
+
   const MediaSourcePicker({
     super.key,
     required this.messages,
     required this.onUpload,
     required this.onTorrent,
     required this.onRutube,
+    this.initialTorrentQuery,
   });
 
   @override
@@ -117,6 +122,14 @@ class _MediaSourcePickerState extends ConsumerState<MediaSourcePicker> {
   void initState() {
     super.initState();
     _urlController.addListener(() => setState(() {}));
+    final preset = widget.initialTorrentQuery;
+    if (preset != null && preset.isNotEmpty) {
+      _selectedSource = 'torrent';
+      _searchController.text = preset;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _runSearch();
+      });
+    }
   }
 
   @override

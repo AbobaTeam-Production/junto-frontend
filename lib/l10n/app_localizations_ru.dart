@@ -441,6 +441,181 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sessionsHistoryError => 'Не удалось загрузить';
 
   @override
+  String get navRecs => 'Подборки';
+
+  @override
+  String recsFeedDateLabel(String date, String time) {
+    return '$date · $time';
+  }
+
+  @override
+  String get recsFeedTitle => 'Что посмотреть';
+
+  @override
+  String get recsFeedTitleAccent => 'вечером?';
+
+  @override
+  String get recsFeedFreeNow => 'Сейчас в сети';
+
+  @override
+  String recsFeedFreeCount(int n) {
+    return '$n в сети';
+  }
+
+  @override
+  String get recsFeedTopMatch => 'Топ-совпадение';
+
+  @override
+  String recsFeedFriendWantsToWatch(String name) {
+    return '$name хочет посмотреть';
+  }
+
+  @override
+  String get recsFeedMoodsLabel => 'По настроению';
+
+  @override
+  String get recsFeedTopKpLabel => 'Высокий рейтинг КиноПоиска';
+
+  @override
+  String recsFeedMatchPercent(int n) {
+    return '$n% совпадение';
+  }
+
+  @override
+  String recsFeedFriendsLikeIt(int n) {
+    return 'понравится $n';
+  }
+
+  @override
+  String get recsFeedInvite => 'Позвать';
+
+  @override
+  String get recsFeedEmpty => 'Пока пусто. Добавьте подборки в админке.';
+
+  @override
+  String recsFeedMoodMoviesCount(int n) {
+    return '$n фильмов';
+  }
+
+  @override
+  String get recsPresenceFree => 'в сети';
+
+  @override
+  String get recsPresenceBusy => 'в комнате';
+
+  @override
+  String get recsPresenceIdle => 'не в сети';
+
+  @override
+  String get recsMatchHeader => 'совпадение вкусов';
+
+  @override
+  String recsMatchPairLabel(String name) {
+    return 'Ты и $name';
+  }
+
+  @override
+  String recsMatchOverlapStat(int percent, int count) {
+    return '$percent% общих вкусов · $count совпадений';
+  }
+
+  @override
+  String get recsMatchSharedTags => 'Любите оба';
+
+  @override
+  String get recsMatchListLabel => 'Рекомендуем вдвоём';
+
+  @override
+  String get recsMatchInsufficient =>
+      'Соберите больше истории — пересечения появятся, когда у каждого будет 3+ просмотра.';
+
+  @override
+  String recsMatchCta(String name) {
+    return 'Создать комнату с $name';
+  }
+
+  @override
+  String get recsMoodHeader => 'Настроение';
+
+  @override
+  String get recsMoodTitle => 'Сегодня хочется';
+
+  @override
+  String recsMoodTitleAccent(String mood) {
+    return '$mood.';
+  }
+
+  @override
+  String get recsMoodEmpty => 'В этой подборке пока пусто';
+
+  @override
+  String recsTitleMatchHeader(int percent) {
+    return '$percent% совпадение';
+  }
+
+  @override
+  String get recsTitleWhy => 'Почему рекомендуем';
+
+  @override
+  String get recsTitleWillLike => 'Понравится';
+
+  @override
+  String recsTitleCta(String names) {
+    return 'Позвать $names';
+  }
+
+  @override
+  String get recsTitleCtaJoinSelf => 'Создать комнату';
+
+  @override
+  String get recsTitleIntentAdd => 'Хочу посмотреть';
+
+  @override
+  String get recsTitleIntentRemove => 'Передумал';
+
+  @override
+  String get onboardingTagTogether => '01 — Together';
+
+  @override
+  String get onboardingTagOneRoom => '02 — В одной комнате';
+
+  @override
+  String get onboardingTagAnySource => '03 — Любой источник';
+
+  @override
+  String get onboardingSourceTagsLine => 'FILES · TORRENT · RUTUBE · VOICE';
+
+  @override
+  String get onboardingScreenSubtitle => '«Мы в одной комнате.»';
+
+  @override
+  String get onboardingSourceFile => 'Файл';
+
+  @override
+  String get onboardingSourceFileExt => '.mp4 · .mkv\n.webm · .mov';
+
+  @override
+  String get onboardingSourceFileBadge => 'Самое популярное';
+
+  @override
+  String get onboardingSourceTorrent => 'Торрент';
+
+  @override
+  String get onboardingSourceTorrentExt => '.torrent / magnet';
+
+  @override
+  String get onboardingSourceRutube => 'Rutube';
+
+  @override
+  String get onboardingSourceRutubeExt => 'rutube.ru/...';
+
+  @override
+  String get onboardingSourceStream => 'Стрим';
+
+  @override
+  String get onboardingSourceStreamExt => 'HLS / m3u8';
+
+  @override
   String get editProfileTitle => 'Редактировать профиль';
 
   @override

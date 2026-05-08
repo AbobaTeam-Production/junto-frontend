@@ -902,6 +902,306 @@ abstract class AppLocalizations {
   /// **'Не удалось загрузить'**
   String get sessionsHistoryError;
 
+  /// No description provided for @navRecs.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подборки'**
+  String get navRecs;
+
+  /// No description provided for @recsFeedDateLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'{date} · {time}'**
+  String recsFeedDateLabel(String date, String time);
+
+  /// No description provided for @recsFeedTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Что посмотреть'**
+  String get recsFeedTitle;
+
+  /// No description provided for @recsFeedTitleAccent.
+  ///
+  /// In ru, this message translates to:
+  /// **'вечером?'**
+  String get recsFeedTitleAccent;
+
+  /// No description provided for @recsFeedFreeNow.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сейчас в сети'**
+  String get recsFeedFreeNow;
+
+  /// No description provided for @recsFeedFreeCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n} в сети'**
+  String recsFeedFreeCount(int n);
+
+  /// No description provided for @recsFeedTopMatch.
+  ///
+  /// In ru, this message translates to:
+  /// **'Топ-совпадение'**
+  String get recsFeedTopMatch;
+
+  /// No description provided for @recsFeedFriendWantsToWatch.
+  ///
+  /// In ru, this message translates to:
+  /// **'{name} хочет посмотреть'**
+  String recsFeedFriendWantsToWatch(String name);
+
+  /// No description provided for @recsFeedMoodsLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'По настроению'**
+  String get recsFeedMoodsLabel;
+
+  /// No description provided for @recsFeedTopKpLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Высокий рейтинг КиноПоиска'**
+  String get recsFeedTopKpLabel;
+
+  /// No description provided for @recsFeedMatchPercent.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n}% совпадение'**
+  String recsFeedMatchPercent(int n);
+
+  /// No description provided for @recsFeedFriendsLikeIt.
+  ///
+  /// In ru, this message translates to:
+  /// **'понравится {n}'**
+  String recsFeedFriendsLikeIt(int n);
+
+  /// No description provided for @recsFeedInvite.
+  ///
+  /// In ru, this message translates to:
+  /// **'Позвать'**
+  String get recsFeedInvite;
+
+  /// No description provided for @recsFeedEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока пусто. Добавьте подборки в админке.'**
+  String get recsFeedEmpty;
+
+  /// No description provided for @recsFeedMoodMoviesCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'{n} фильмов'**
+  String recsFeedMoodMoviesCount(int n);
+
+  /// No description provided for @recsPresenceFree.
+  ///
+  /// In ru, this message translates to:
+  /// **'в сети'**
+  String get recsPresenceFree;
+
+  /// No description provided for @recsPresenceBusy.
+  ///
+  /// In ru, this message translates to:
+  /// **'в комнате'**
+  String get recsPresenceBusy;
+
+  /// No description provided for @recsPresenceIdle.
+  ///
+  /// In ru, this message translates to:
+  /// **'не в сети'**
+  String get recsPresenceIdle;
+
+  /// No description provided for @recsMatchHeader.
+  ///
+  /// In ru, this message translates to:
+  /// **'совпадение вкусов'**
+  String get recsMatchHeader;
+
+  /// No description provided for @recsMatchPairLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ты и {name}'**
+  String recsMatchPairLabel(String name);
+
+  /// No description provided for @recsMatchOverlapStat.
+  ///
+  /// In ru, this message translates to:
+  /// **'{percent}% общих вкусов · {count} совпадений'**
+  String recsMatchOverlapStat(int percent, int count);
+
+  /// No description provided for @recsMatchSharedTags.
+  ///
+  /// In ru, this message translates to:
+  /// **'Любите оба'**
+  String get recsMatchSharedTags;
+
+  /// No description provided for @recsMatchListLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рекомендуем вдвоём'**
+  String get recsMatchListLabel;
+
+  /// No description provided for @recsMatchInsufficient.
+  ///
+  /// In ru, this message translates to:
+  /// **'Соберите больше истории — пересечения появятся, когда у каждого будет 3+ просмотра.'**
+  String get recsMatchInsufficient;
+
+  /// No description provided for @recsMatchCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Создать комнату с {name}'**
+  String recsMatchCta(String name);
+
+  /// No description provided for @recsMoodHeader.
+  ///
+  /// In ru, this message translates to:
+  /// **'Настроение'**
+  String get recsMoodHeader;
+
+  /// No description provided for @recsMoodTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сегодня хочется'**
+  String get recsMoodTitle;
+
+  /// No description provided for @recsMoodTitleAccent.
+  ///
+  /// In ru, this message translates to:
+  /// **'{mood}.'**
+  String recsMoodTitleAccent(String mood);
+
+  /// No description provided for @recsMoodEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'В этой подборке пока пусто'**
+  String get recsMoodEmpty;
+
+  /// No description provided for @recsTitleMatchHeader.
+  ///
+  /// In ru, this message translates to:
+  /// **'{percent}% совпадение'**
+  String recsTitleMatchHeader(int percent);
+
+  /// No description provided for @recsTitleWhy.
+  ///
+  /// In ru, this message translates to:
+  /// **'Почему рекомендуем'**
+  String get recsTitleWhy;
+
+  /// No description provided for @recsTitleWillLike.
+  ///
+  /// In ru, this message translates to:
+  /// **'Понравится'**
+  String get recsTitleWillLike;
+
+  /// No description provided for @recsTitleCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Позвать {names}'**
+  String recsTitleCta(String names);
+
+  /// No description provided for @recsTitleCtaJoinSelf.
+  ///
+  /// In ru, this message translates to:
+  /// **'Создать комнату'**
+  String get recsTitleCtaJoinSelf;
+
+  /// No description provided for @recsTitleIntentAdd.
+  ///
+  /// In ru, this message translates to:
+  /// **'Хочу посмотреть'**
+  String get recsTitleIntentAdd;
+
+  /// No description provided for @recsTitleIntentRemove.
+  ///
+  /// In ru, this message translates to:
+  /// **'Передумал'**
+  String get recsTitleIntentRemove;
+
+  /// No description provided for @onboardingTagTogether.
+  ///
+  /// In ru, this message translates to:
+  /// **'01 — Together'**
+  String get onboardingTagTogether;
+
+  /// No description provided for @onboardingTagOneRoom.
+  ///
+  /// In ru, this message translates to:
+  /// **'02 — В одной комнате'**
+  String get onboardingTagOneRoom;
+
+  /// No description provided for @onboardingTagAnySource.
+  ///
+  /// In ru, this message translates to:
+  /// **'03 — Любой источник'**
+  String get onboardingTagAnySource;
+
+  /// No description provided for @onboardingSourceTagsLine.
+  ///
+  /// In ru, this message translates to:
+  /// **'FILES · TORRENT · RUTUBE · VOICE'**
+  String get onboardingSourceTagsLine;
+
+  /// No description provided for @onboardingScreenSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'«Мы в одной комнате.»'**
+  String get onboardingScreenSubtitle;
+
+  /// No description provided for @onboardingSourceFile.
+  ///
+  /// In ru, this message translates to:
+  /// **'Файл'**
+  String get onboardingSourceFile;
+
+  /// No description provided for @onboardingSourceFileExt.
+  ///
+  /// In ru, this message translates to:
+  /// **'.mp4 · .mkv\n.webm · .mov'**
+  String get onboardingSourceFileExt;
+
+  /// No description provided for @onboardingSourceFileBadge.
+  ///
+  /// In ru, this message translates to:
+  /// **'Самое популярное'**
+  String get onboardingSourceFileBadge;
+
+  /// No description provided for @onboardingSourceTorrent.
+  ///
+  /// In ru, this message translates to:
+  /// **'Торрент'**
+  String get onboardingSourceTorrent;
+
+  /// No description provided for @onboardingSourceTorrentExt.
+  ///
+  /// In ru, this message translates to:
+  /// **'.torrent / magnet'**
+  String get onboardingSourceTorrentExt;
+
+  /// No description provided for @onboardingSourceRutube.
+  ///
+  /// In ru, this message translates to:
+  /// **'Rutube'**
+  String get onboardingSourceRutube;
+
+  /// No description provided for @onboardingSourceRutubeExt.
+  ///
+  /// In ru, this message translates to:
+  /// **'rutube.ru/...'**
+  String get onboardingSourceRutubeExt;
+
+  /// No description provided for @onboardingSourceStream.
+  ///
+  /// In ru, this message translates to:
+  /// **'Стрим'**
+  String get onboardingSourceStream;
+
+  /// No description provided for @onboardingSourceStreamExt.
+  ///
+  /// In ru, this message translates to:
+  /// **'HLS / m3u8'**
+  String get onboardingSourceStreamExt;
+
   /// No description provided for @editProfileTitle.
   ///
   /// In ru, this message translates to:

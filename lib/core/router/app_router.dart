@@ -13,6 +13,10 @@ import '../../features/profile/screens/friends_screen.dart';
 import '../../features/shell/screens/shell_screen.dart';
 import '../../features/room/screens/room_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../features/recs/screens/recs_feed_screen.dart';
+import '../../features/recs/screens/recs_match_screen.dart';
+import '../../features/recs/screens/recs_mood_screen.dart';
+import '../../features/recs/screens/recs_title_screen.dart';
 
 /// Bridges Riverpod → GoRouter: notifies GoRouter to re-evaluate redirects
 /// whenever auth state changes, without recreating the router.
@@ -133,7 +137,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Tab 1: Rooms
+          // Tab 1: Recs (Подборки)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/recs',
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: RecsFeedScreen(),
+                ),
+              ),
+            ],
+          ),
+          // Tab 2: Rooms
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -144,7 +159,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Tab 2: Profile
+          // Tab 3: Profile
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -156,6 +171,51 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // Recs sub-routes — outside shell, pushed from feed
+      GoRoute(
+        path: '/recs/match/:friendId',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: RecsMatchScreen(
+            friendId: int.parse(state.pathParameters['friendId']!),
+          ),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/recs/mood/:slug',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: RecsMoodScreen(slug: state.pathParameters['slug']!),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/recs/title/:movieId',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: RecsTitleScreen(
+            movieId: int.parse(state.pathParameters['movieId']!),
+          ),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+            child: child,
+          ),
+        ),
       ),
 
       // Friends — outside shell, pushed from Profile

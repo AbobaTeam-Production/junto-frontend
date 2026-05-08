@@ -35,4 +35,12 @@ class ApiEndpoints {
 
   // Watch session history (paginated)
   static const String profileSessions = '/profile/sessions/';
+
+  // Recommendations
+  static const String recsFeed = '/recs/feed/';
+  static String recsMatch(int friendId) => '/recs/match/$friendId/';
+  static String recsMood(String slug) => '/recs/mood/$slug/';
+  static String recsTitle(int movieId) => '/recs/title/$movieId/';
+  static String recsTitleIntent(int movieId) => '/recs/title/$movieId/intent/';
+  static String recsTitleInvite(int movieId) => '/recs/title/$movieId/invite/';
 }

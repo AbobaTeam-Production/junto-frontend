@@ -170,6 +170,105 @@
   },
   "sessionsHistoryError": "Failed to load",
 
+  "navRecs": "Picks",
+
+  "recsFeedDateLabel": "{date} · {time}",
+  "@recsFeedDateLabel": {
+    "placeholders": {
+      "date": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "recsFeedTitle": "What to watch",
+  "recsFeedTitleAccent": "tonight?",
+  "recsFeedFreeNow": "Online now",
+  "recsFeedFreeCount": "{n} online",
+  "@recsFeedFreeCount": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedTopMatch": "Top match",
+  "recsFeedFriendWantsToWatch": "{name} wants to watch",
+  "@recsFeedFriendWantsToWatch": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "recsFeedMoodsLabel": "By mood",
+  "recsFeedTopKpLabel": "Top-rated on KinoPoisk",
+  "recsFeedMatchPercent": "{n}% match",
+  "@recsFeedMatchPercent": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedFriendsLikeIt": "{n} would love it",
+  "@recsFeedFriendsLikeIt": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "recsFeedInvite": "Invite",
+  "recsFeedEmpty": "Empty for now. Add lists in the admin.",
+  "recsFeedMoodMoviesCount": "{n} films",
+  "@recsFeedMoodMoviesCount": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+
+  "recsPresenceFree": "online",
+  "recsPresenceBusy": "in a room",
+  "recsPresenceIdle": "offline",
+
+  "recsMatchHeader": "taste overlap",
+  "recsMatchPairLabel": "You and {name}",
+  "@recsMatchPairLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "recsMatchOverlapStat": "{percent}% shared taste · {count} overlaps",
+  "@recsMatchOverlapStat": {
+    "placeholders": {
+      "percent": { "type": "int" },
+      "count":   { "type": "int" }
+    }
+  },
+  "recsMatchSharedTags": "You both love",
+  "recsMatchListLabel": "Recommended for both",
+  "recsMatchInsufficient": "Build up history first — overlaps appear once each of you has 3+ views.",
+  "recsMatchCta": "Start a room with {name}",
+  "@recsMatchCta": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "recsMoodHeader": "Mood",
+  "recsMoodTitle": "Tonight feels like",
+  "recsMoodTitleAccent": "{mood}.",
+  "@recsMoodTitleAccent": {
+    "placeholders": { "mood": { "type": "String" } }
+  },
+  "recsMoodEmpty": "This list is empty",
+
+  "recsTitleMatchHeader": "{percent}% match",
+  "@recsTitleMatchHeader": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "recsTitleWhy": "Why we recommend",
+  "recsTitleWillLike": "Will love it",
+  "recsTitleCta": "Invite {names}",
+  "@recsTitleCta": {
+    "placeholders": { "names": { "type": "String" } }
+  },
+  "recsTitleCtaJoinSelf": "Start a room",
+  "recsTitleIntentAdd": "Want to watch",
+  "recsTitleIntentRemove": "Never mind",
+
+  "onboardingTagTogether": "01 — Together",
+  "onboardingTagOneRoom": "02 — One room",
+  "onboardingTagAnySource": "03 — Any source",
+  "onboardingSourceTagsLine": "FILES · TORRENT · RUTUBE · VOICE",
+  "onboardingScreenSubtitle": "“We're in the same room.”",
+  "onboardingSourceFile": "File",
+  "onboardingSourceFileExt": ".mp4 · .mkv\n.webm · .mov",
+  "onboardingSourceFileBadge": "Most popular",
+  "onboardingSourceTorrent": "Torrent",
+  "onboardingSourceTorrentExt": ".torrent / magnet",
+  "onboardingSourceRutube": "Rutube",
+  "onboardingSourceRutubeExt": "rutube.ru/...",
+  "onboardingSourceStream": "Stream",
+  "onboardingSourceStreamExt": "HLS / m3u8",
+
   "editProfileTitle": "Edit profile",
   "editProfileUsername": "Username",
   "editProfileEmail": "Email",
