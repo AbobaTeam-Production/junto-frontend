@@ -159,9 +159,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     value: settings.notificationsEnabled
                         ? l.profileNotificationsOn
                         : l.profileNotificationsOff,
-                    onTap: () => ref
-                        .read(settingsProvider.notifier)
-                        .setNotificationsEnabled(!settings.notificationsEnabled),
+                    onTap: () => _toggleNotifications(context, ref, settings),
                   ),
                 _Row(
                   icon: Icons.language_outlined,
@@ -247,6 +245,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// Toggle handler — runs in the user-gesture frame so on Web the
+  /// browser actually shows the permission prompt instead of silently
+  /// returning 'default'. Surfaces the FcmRegisterStatus as a SnackBar
+  /// so the user knows whether the toggle did what they expected.
+  Future<void> _toggleNotifications(
+    BuildContext context, WidgetRef ref, AppSettings settings,
+  ) async {
+    final l = AppLocalizations.of(context);
+    final goingOn = !settings.notificationsEnabled;
+
+    // Persist state first — fcmLifecycleProvider listens and reacts,
+    // but we ALSO call register/unregister explicitly here so the
+    // user-gesture chain isn't broken by the listener round-trip.
+    await ref
+        .read(settingsProvider.notifier)
+        .setNotificationsEnabled(goingOn);
+
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (!goingOn) {
+      await ref.read(fcmControllerProvider).unregister();
+      messenger.showSnackBar(SnackBar(content: Text(l.profileNotificationsOff)));
+      return;
+    }
+
+    final status = await ref.read(fcmControllerProvider).register();
+    final controller = ref.read(fcmControllerProvider);
+    String text;
+    switch (status) {
+      case FcmRegisterStatus.ok:
+        text = l.profileNotificationsOn;
+        break;
+      case FcmRegisterStatus.permissionDenied:
+        text = 'Разрешение не выдано — проверьте настройки сайта/приложения.';
+        break;
+      case FcmRegisterStatus.unsupported:
+        text = 'Платформа не поддерживает push-уведомления.';
+        break;
+      case FcmRegisterStatus.backendError:
+        text = 'Сервер не принял токен: ${controller.lastError}';
+        break;
+      case FcmRegisterStatus.initError:
+        text = 'Не удалось инициализировать FCM: ${controller.lastError}';
+        break;
+    }
+    messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 
   /// Guests are technically authenticated, so a bare context.go('/login')

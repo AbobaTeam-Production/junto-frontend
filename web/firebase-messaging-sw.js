@@ -30,9 +30,12 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil((async () => {
     const data = event.notification?.data || {};
-    const path = data.type === 'friend_request' || data.type === 'friend_accepted'
-      ? '/friends'
-      : '/';
+    let path = '/';
+    if (data.type === 'friend_request' || data.type === 'friend_accepted') {
+      path = '/friends';
+    } else if (data.type === 'room_invite' && data.room_id) {
+      path = `/room/${data.room_id}`;
+    }
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clients) {
       if ('focus' in client) {
