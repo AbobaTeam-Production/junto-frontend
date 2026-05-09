@@ -22,19 +22,31 @@ class RecsTitleScreen extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final asyncTitle = ref.watch(recsTitleProvider(movieId));
 
+    final w = MediaQuery.of(context).size.width;
+    final body = asyncTitle.when(
+      loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      error: (_, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(l.sessionsHistoryError,
+              style: AppTheme.text(size: 14, color: AppColors.ink3)),
+        ),
+      ),
+      data: (t) => _TitleBody(title: t, movieId: movieId),
+    );
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: asyncTitle.when(
-        loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        error: (_, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(l.sessionsHistoryError,
-                style: AppTheme.text(size: 14, color: AppColors.ink3)),
-          ),
-        ),
-        data: (t) => _TitleBody(title: t, movieId: movieId),
-      ),
+      // The title page is a phone layout — at desktop width the 320-tall
+      // backdrop fills the whole window because BoxFit.cover crops up. Cap
+      // the column at 720 px so the hero stays in proportion.
+      body: w > 720
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: body,
+              ),
+            )
+          : body,
     );
   }
 }
