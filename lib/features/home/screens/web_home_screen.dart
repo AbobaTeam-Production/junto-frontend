@@ -352,7 +352,11 @@ class _JoinHero extends StatelessWidget {
                   ],
                 ],
               ),
-              const Spacer(),
+              // Spacer can collapse to 0 when the column has no
+              // bounded height (e.g. card auto-sizes), which leaves
+              // the Войти button glued to the code-box row. Hard
+              // 22 px gap so the button always stands clear.
+              const SizedBox(height: 22),
               SizedBox(
                 height: 44,
                 child: Material(
