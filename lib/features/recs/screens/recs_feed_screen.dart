@@ -121,7 +121,14 @@ class _FeedBody extends ConsumerWidget {
     final timeLabel = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final freeCount = feed.friendsOnline.where((f) => f.isFree).length;
 
-    return ListView(
+    // Phone-tailored layout — at desktop width the 16:10 hero card becomes
+    // ~810 px tall and the trending carousels look weirdly sparse. Cap the
+    // content column to the same 1120 px the desktop /home uses.
+    final w = MediaQuery.of(context).size.width;
+    final shouldCap = w > 1120;
+    return _CappedScroll(
+      enabled: shouldCap,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
       children: [
         Padding(
@@ -413,7 +420,8 @@ class _FeedBody extends ConsumerWidget {
             ),
           ),
       ],
-    ).animate().fadeIn(duration: 300.ms);
+      ).animate().fadeIn(duration: 300.ms),
+    );
   }
 
   static String _weekdayName(int weekday, AppLocalizations l) {
@@ -423,6 +431,26 @@ class _FeedBody extends ConsumerWidget {
     final isRu = l.localeName.startsWith('ru');
     final list = isRu ? ru : en;
     return list[(weekday - 1) % 7];
+  }
+}
+
+/// Centers + caps the recs feed at 1120 px on desktop. The feed is a
+/// shared widget tree (mobile + web), so we can't push the cap up the
+/// router — wrap inline and pass the body through unchanged on phone.
+class _CappedScroll extends StatelessWidget {
+  final bool enabled;
+  final Widget child;
+  const _CappedScroll({required this.enabled, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: child,
+      ),
+    );
   }
 }
 
