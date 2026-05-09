@@ -680,6 +680,168 @@ abstract class AppLocalizations {
   /// **'Профиль'**
   String get profileLabel;
 
+  /// No description provided for @profileTabAccount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Аккаунт'**
+  String get profileTabAccount;
+
+  /// No description provided for @profileTabAudioVideo.
+  ///
+  /// In ru, this message translates to:
+  /// **'Звук и микрофон'**
+  String get profileTabAudioVideo;
+
+  /// No description provided for @profileTabSessions.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сеансы'**
+  String get profileTabSessions;
+
+  /// No description provided for @profileNickname.
+  ///
+  /// In ru, this message translates to:
+  /// **'Никнейм'**
+  String get profileNickname;
+
+  /// No description provided for @profileEmail.
+  ///
+  /// In ru, this message translates to:
+  /// **'Email'**
+  String get profileEmail;
+
+  /// No description provided for @profileEdit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Изменить'**
+  String get profileEdit;
+
+  /// No description provided for @profileChange.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сменить'**
+  String get profileChange;
+
+  /// No description provided for @profileOpen.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открыть →'**
+  String get profileOpen;
+
+  /// No description provided for @profilePushOn.
+  ///
+  /// In ru, this message translates to:
+  /// **'Push включены'**
+  String get profilePushOn;
+
+  /// No description provided for @profilePushOff.
+  ///
+  /// In ru, this message translates to:
+  /// **'Push выключены'**
+  String get profilePushOff;
+
+  /// No description provided for @profilePushDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'Друзья, приглашения, реакции'**
+  String get profilePushDesc;
+
+  /// No description provided for @profileAudioVideoGroup.
+  ///
+  /// In ru, this message translates to:
+  /// **'Звук · видео · язык'**
+  String get profileAudioVideoGroup;
+
+  /// No description provided for @profileSystemDevice.
+  ///
+  /// In ru, this message translates to:
+  /// **'Системное устройство'**
+  String get profileSystemDevice;
+
+  /// No description provided for @profileSessionsGroup.
+  ///
+  /// In ru, this message translates to:
+  /// **'Последние сеансы'**
+  String get profileSessionsGroup;
+
+  /// No description provided for @profileSessionsHistory.
+  ///
+  /// In ru, this message translates to:
+  /// **'История просмотров'**
+  String get profileSessionsHistory;
+
+  /// No description provided for @profileSessionsHistoryDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все ваши совместные просмотры'**
+  String get profileSessionsHistoryDesc;
+
+  /// No description provided for @profileSessionsEmpty.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пока нет сеансов'**
+  String get profileSessionsEmpty;
+
+  /// No description provided for @profileSessionsEmptyDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'После первого фильма здесь появится список'**
+  String get profileSessionsEmptyDesc;
+
+  /// No description provided for @profileLicensesDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'Open-source компоненты'**
+  String get profileLicensesDesc;
+
+  /// No description provided for @profileGuestMode.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вы в гостевом режиме'**
+  String get profileGuestMode;
+
+  /// No description provided for @profileGuestModeDesc.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войдите, чтобы синхронизировать настройки и сохранить друзей.'**
+  String get profileGuestModeDesc;
+
+  /// No description provided for @profileFcmPermissionDenied.
+  ///
+  /// In ru, this message translates to:
+  /// **'Разрешение не выдано — проверьте настройки сайта/приложения.'**
+  String get profileFcmPermissionDenied;
+
+  /// No description provided for @profileFcmUnsupported.
+  ///
+  /// In ru, this message translates to:
+  /// **'Платформа не поддерживает push-уведомления.'**
+  String get profileFcmUnsupported;
+
+  /// No description provided for @profileFcmBackendError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сервер не принял токен: {error}'**
+  String profileFcmBackendError(String error);
+
+  /// No description provided for @profileFcmInitError.
+  ///
+  /// In ru, this message translates to:
+  /// **'Не удалось инициализировать FCM: {error}'**
+  String profileFcmInitError(String error);
+
+  /// No description provided for @profileEditButton.
+  ///
+  /// In ru, this message translates to:
+  /// **'Изменить'**
+  String get profileEditButton;
+
+  /// No description provided for @loginSubmit.
+  ///
+  /// In ru, this message translates to:
+  /// **'Войти'**
+  String get loginSubmit;
+
   /// No description provided for @profileGuestLabel.
   ///
   /// In ru, this message translates to:

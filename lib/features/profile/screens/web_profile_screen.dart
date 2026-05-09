@@ -321,16 +321,16 @@ class _WebProfileScreenState extends ConsumerState<WebProfileScreen> {
         text = l.profileNotificationsOn;
         break;
       case FcmRegisterStatus.permissionDenied:
-        text = 'Разрешение не выдано — проверьте настройки сайта/приложения.';
+        text = l.profileFcmPermissionDenied;
         break;
       case FcmRegisterStatus.unsupported:
-        text = 'Платформа не поддерживает push-уведомления.';
+        text = l.profileFcmUnsupported;
         break;
       case FcmRegisterStatus.backendError:
-        text = 'Сервер не принял токен: ${controller.lastError}';
+        text = l.profileFcmBackendError(controller.lastError);
         break;
       case FcmRegisterStatus.initError:
-        text = 'Не удалось инициализировать FCM: ${controller.lastError}';
+        text = l.profileFcmInitError(controller.lastError);
         break;
     }
     messenger.showSnackBar(SnackBar(content: Text(text)));
@@ -454,22 +454,28 @@ class _SectionNav extends StatelessWidget {
     required this.onLogout,
   });
 
-  static const _items = [
-    _NavItem(_Section.account, 'Аккаунт', Icons.person_outline_rounded),
-    _NavItem(_Section.notifications, 'Уведомления',
-        Icons.notifications_none_rounded),
-    _NavItem(_Section.audioVideo, 'Звук и микрофон', Icons.mic_none_rounded),
-    _NavItem(_Section.language, 'Сеансы', Icons.history_rounded),
-    _NavItem(_Section.about, 'О приложении', Icons.info_outline_rounded),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    // Items have to be built per-frame to read l10n; the previous
+    // const list hard-coded Russian which leaked through whenever
+    // locale was English.
+    final items = <_NavItem>[
+      _NavItem(_Section.account, l.profileTabAccount,
+          Icons.person_outline_rounded),
+      _NavItem(_Section.notifications, l.profileNotifications,
+          Icons.notifications_none_rounded),
+      _NavItem(_Section.audioVideo, l.profileTabAudioVideo,
+          Icons.mic_none_rounded),
+      _NavItem(_Section.language, l.profileTabSessions,
+          Icons.history_outlined),
+      _NavItem(_Section.about, l.profileAboutTitle,
+          Icons.info_outline_rounded),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final it in _items)
+        for (final it in items)
           _NavRow(
             label: it.label,
             icon: it.icon,
@@ -636,7 +642,7 @@ class _IdentityCard extends StatelessWidget {
                   Row(
                     children: [
                       _MiniPill(
-                        label: 'Изменить',
+                        label: AppLocalizations.of(context).profileEdit,
                         icon: Icons.edit_outlined,
                         onTap: onEdit!,
                       ),
@@ -899,19 +905,20 @@ class _AccountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _GroupCard(
-      title: 'Аккаунт',
+      title: l.profileTabAccount,
       rows: [
         _SettingRow(
-          label: 'Никнейм',
+          label: l.profileNickname,
           value: handle,
-          action: isGuest ? null : 'Изменить',
+          action: isGuest ? null : l.profileEdit,
           onTap: onEdit,
         ),
         _SettingRow(
-          label: 'Email',
+          label: l.profileEmail,
           value: email,
-          action: isGuest ? null : 'Изменить',
+          action: isGuest ? null : l.profileEdit,
           onTap: onEdit,
         ),
       ],
@@ -935,8 +942,8 @@ class _NotificationsSection extends StatelessWidget {
       title: l.profileNotifications,
       rows: [
         _SettingRow(
-          label: enabled ? 'Push включены' : 'Push выключены',
-          value: 'Друзья, приглашения, реакции',
+          label: enabled ? l.profilePushOn : l.profilePushOff,
+          value: l.profilePushDesc,
           trailing: _Switch(on: enabled, onTap: onToggle),
         ),
       ],
@@ -959,18 +966,18 @@ class _AudioVideoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return _GroupCard(
-      title: 'Звук · видео · язык',
+      title: l.profileAudioVideoGroup,
       rows: [
         _SettingRow(
           label: l.profileMicrophone,
-          value: 'Системное устройство',
-          action: 'Сменить',
+          value: l.profileSystemDevice,
+          action: l.profileChange,
           onTap: onPickMic,
         ),
         _SettingRow(
           label: l.profileLanguage,
           value: langLabel,
-          action: 'Сменить',
+          action: l.profileChange,
           onTap: onPickLang,
         ),
       ],
@@ -989,15 +996,16 @@ class _LastSessionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _GroupCard(
-      title: 'Последние сеансы',
+      title: l.profileSessionsGroup,
       rows: [
         _SettingRow(
-          label: hasSessions ? 'История просмотров' : 'Пока нет сеансов',
+          label: hasSessions ? l.profileSessionsHistory : l.profileSessionsEmpty,
           value: hasSessions
-              ? 'Все ваши совместные просмотры'
-              : 'После первого фильма здесь появится список',
-          action: hasSessions ? 'Открыть →' : null,
+              ? l.profileSessionsHistoryDesc
+              : l.profileSessionsEmptyDesc,
+          action: hasSessions ? l.profileOpen : null,
           onTap: hasSessions ? onOpen : null,
         ),
       ],
@@ -1011,14 +1019,15 @@ class _AboutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return _GroupCard(
-      title: 'О приложении',
+      title: l.profileAboutTitle,
       rows: [
-        const _SettingRow(label: 'Версия', value: '1.0.0'),
+        _SettingRow(label: l.profileVersion, value: '1.0.0'),
         _SettingRow(
-          label: 'Лицензии',
-          value: 'Open-source компоненты',
-          action: 'Открыть →',
+          label: l.profileLicenses,
+          value: l.profileLicensesDesc,
+          action: l.profileOpen,
           onTap: onLicenses,
         ),
       ],
@@ -1046,7 +1055,7 @@ class _GuestExitRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Вы в гостевом режиме',
+                  AppLocalizations.of(context).profileGuestMode,
                   style: AppTheme.text(
                     size: 14,
                     weight: FontWeight.w600,
@@ -1055,7 +1064,7 @@ class _GuestExitRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Войдите, чтобы синхронизировать настройки и сохранить друзей.',
+                  AppLocalizations.of(context).profileGuestModeDesc,
                   style: AppTheme.text(
                     size: 12,
                     color: AppColors.ink3,
@@ -1079,7 +1088,7 @@ class _GuestExitRow extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Войти',
+                      AppLocalizations.of(context).loginSubmit,
                       style: AppTheme.text(
                         size: 13,
                         weight: FontWeight.w600,

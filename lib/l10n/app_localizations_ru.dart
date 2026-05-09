@@ -316,6 +316,95 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileLabel => 'Профиль';
 
   @override
+  String get profileTabAccount => 'Аккаунт';
+
+  @override
+  String get profileTabAudioVideo => 'Звук и микрофон';
+
+  @override
+  String get profileTabSessions => 'Сеансы';
+
+  @override
+  String get profileNickname => 'Никнейм';
+
+  @override
+  String get profileEmail => 'Email';
+
+  @override
+  String get profileEdit => 'Изменить';
+
+  @override
+  String get profileChange => 'Сменить';
+
+  @override
+  String get profileOpen => 'Открыть →';
+
+  @override
+  String get profilePushOn => 'Push включены';
+
+  @override
+  String get profilePushOff => 'Push выключены';
+
+  @override
+  String get profilePushDesc => 'Друзья, приглашения, реакции';
+
+  @override
+  String get profileAudioVideoGroup => 'Звук · видео · язык';
+
+  @override
+  String get profileSystemDevice => 'Системное устройство';
+
+  @override
+  String get profileSessionsGroup => 'Последние сеансы';
+
+  @override
+  String get profileSessionsHistory => 'История просмотров';
+
+  @override
+  String get profileSessionsHistoryDesc => 'Все ваши совместные просмотры';
+
+  @override
+  String get profileSessionsEmpty => 'Пока нет сеансов';
+
+  @override
+  String get profileSessionsEmptyDesc =>
+      'После первого фильма здесь появится список';
+
+  @override
+  String get profileLicensesDesc => 'Open-source компоненты';
+
+  @override
+  String get profileGuestMode => 'Вы в гостевом режиме';
+
+  @override
+  String get profileGuestModeDesc =>
+      'Войдите, чтобы синхронизировать настройки и сохранить друзей.';
+
+  @override
+  String get profileFcmPermissionDenied =>
+      'Разрешение не выдано — проверьте настройки сайта/приложения.';
+
+  @override
+  String get profileFcmUnsupported =>
+      'Платформа не поддерживает push-уведомления.';
+
+  @override
+  String profileFcmBackendError(String error) {
+    return 'Сервер не принял токен: $error';
+  }
+
+  @override
+  String profileFcmInitError(String error) {
+    return 'Не удалось инициализировать FCM: $error';
+  }
+
+  @override
+  String get profileEditButton => 'Изменить';
+
+  @override
+  String get loginSubmit => 'Войти';
+
+  @override
   String get profileGuestLabel => 'Гость';
 
   @override
