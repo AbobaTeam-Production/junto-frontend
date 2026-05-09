@@ -15,7 +15,7 @@ import '../../../core/api/server_config.dart';
 
 class RecsMovie {
   final int id;
-  final int kpId;
+  final int tmdbId;
   final String titleRu;
   final String titleOrig;
   final int? year;
@@ -26,10 +26,11 @@ class RecsMovie {
   final double? kpRating;
   final List<String> genres;
   final String synopsisRu;
+  final String? trailerEmbedUrl;
 
   const RecsMovie({
     required this.id,
-    required this.kpId,
+    required this.tmdbId,
     required this.titleRu,
     this.titleOrig = '',
     this.year,
@@ -40,11 +41,12 @@ class RecsMovie {
     this.kpRating,
     this.genres = const [],
     this.synopsisRu = '',
+    this.trailerEmbedUrl,
   });
 
   factory RecsMovie.fromJson(Map<String, dynamic> j) => RecsMovie(
         id: (j['id'] as num).toInt(),
-        kpId: (j['kp_id'] as num).toInt(),
+        tmdbId: (j['tmdb_id'] as num?)?.toInt() ?? 0,
         titleRu: (j['title_ru'] as String?) ?? '',
         titleOrig: (j['title_orig'] as String?) ?? '',
         year: (j['year'] as num?)?.toInt(),
@@ -57,6 +59,7 @@ class RecsMovie {
         kpRating: _toDouble(j['kp_rating']),
         genres: (j['genres'] as List?)?.map((e) => e.toString()).toList() ?? const [],
         synopsisRu: (j['synopsis_ru'] as String?) ?? '',
+        trailerEmbedUrl: _emptyAsNull(j['trailer_embed_url']),
       );
 }
 
@@ -154,6 +157,9 @@ class RecsMood {
   final String subtitle;
   final int hue;
   final int count;
+  // Backend marks the synthetic /recs/feed/ ad slot with this flag so
+  // the UI can surface a "Реклама" badge.
+  final bool isSponsored;
 
   const RecsMood({
     required this.id,
@@ -162,6 +168,7 @@ class RecsMood {
     this.subtitle = '',
     this.hue = 75,
     this.count = 0,
+    this.isSponsored = false,
   });
 
   factory RecsMood.fromJson(Map<String, dynamic> j) => RecsMood(
@@ -171,12 +178,14 @@ class RecsMood {
         subtitle: (j['subtitle'] as String?) ?? '',
         hue: (j['hue'] as num?)?.toInt() ?? 75,
         count: (j['count'] as num?)?.toInt() ?? 0,
+        isSponsored: (j['is_sponsored'] as bool?) ?? false,
       );
 }
 
 class RecsFeed {
   final List<RecsFriend> friendsOnline;
   final RecsHero? hero;
+  final List<RecsMovie> trending;
   final RecsSocialRow? socialRow;
   final List<RecsMovie> topByKp;
   final List<RecsMood> moods;
@@ -184,6 +193,7 @@ class RecsFeed {
   const RecsFeed({
     this.friendsOnline = const [],
     this.hero,
+    this.trending = const [],
     this.socialRow,
     this.topByKp = const [],
     this.moods = const [],
@@ -197,6 +207,10 @@ class RecsFeed {
         hero: j['hero'] == null
             ? null
             : RecsHero.fromJson(Map<String, dynamic>.from(j['hero'] as Map)),
+        trending: (j['trending'] as List?)
+                ?.map((e) => RecsMovie.fromJson(Map<String, dynamic>.from(e as Map)))
+                .toList() ??
+            const [],
         socialRow: j['social_row'] == null
             ? null
             : RecsSocialRow.fromJson(Map<String, dynamic>.from(j['social_row'] as Map)),
@@ -406,6 +420,40 @@ final recsTitleProvider =
   final resp = await dio.get(ApiEndpoints.recsTitle(movieId));
   return RecsTitle.fromJson(Map<String, dynamic>.from(resp.data as Map));
 });
+
+/// Search across the catalog. autoDispose family by query so a new
+/// query gets a fresh future without leaking the old one.
+final recsSearchProvider =
+    FutureProvider.autoDispose.family<List<RecsMovie>, String>((ref, query) async {
+  if (query.trim().length < 2) return const [];
+  final dio = ref.read(dioProvider);
+  // Build URL manually: Dio's queryParameters has been observed to
+  // emit CP1251-encoded bytes for Cyrillic on Flutter Web.
+  final resp = await dio.get(
+    '${ApiEndpoints.recsSearch}?q=${Uri.encodeQueryComponent(query.trim())}',
+  );
+  return (resp.data as List)
+      .map((e) => RecsMovie.fromJson(Map<String, dynamic>.from(e as Map)))
+      .toList();
+});
+
+final tasteOnboardingProvider =
+    FutureProvider.autoDispose<List<RecsMovie>>((ref) async {
+  final dio = ref.read(dioProvider);
+  final resp = await dio.get(ApiEndpoints.recsOnboardingTaste);
+  return (resp.data as List)
+      .map((e) => RecsMovie.fromJson(Map<String, dynamic>.from(e as Map)))
+      .toList();
+});
+
+Future<int> submitTasteSignals(WidgetRef ref, List<int> movieIds) async {
+  final dio = ref.read(dioProvider);
+  final resp = await dio.post(
+    ApiEndpoints.recsOnboardingTaste,
+    data: {'liked_movie_ids': movieIds},
+  );
+  return (resp.data['count'] as num?)?.toInt() ?? 0;
+}
 
 /// Toggles WatchIntent. Caller invalidates `recsTitleProvider(movieId)`
 /// after to refresh the screen.

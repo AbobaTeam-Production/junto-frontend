@@ -144,7 +144,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.04, end: 0),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Subscription card — call-to-action on Free, manage-link
+            // on Pro/Cinema. Gated behind isGuest so guest accounts
+            // don't see a paywall they can't act on.
+            if (user != null && !user.isGuest)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _SubscriptionCard(
+                  isPro: user.isPro,
+                  tier: user.tier,
+                  onTap: () {
+                    if (user.isPro) {
+                      context.push('/billing/manage');
+                    } else {
+                      context.push('/billing/plans?plan=pro');
+                    }
+                  },
+                ),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.04, end: 0),
+
+            if (!isGuest) const SizedBox(height: 24),
 
             // Settings section. Notifications row is hidden on platforms
             // where firebase_messaging has no implementation (Windows /
@@ -539,6 +560,95 @@ class _Row extends StatelessWidget {
               const SizedBox(width: 6),
               const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.ink4),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Junto Pro" call-to-action / "Subscription" manage-link card,
+/// shown between the profile stats and the settings section.
+class _SubscriptionCard extends StatelessWidget {
+  final bool isPro;
+  final String tier;
+  final VoidCallback onTap;
+
+  const _SubscriptionCard({
+    required this.isPro,
+    required this.tier,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.r3),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isPro
+                ? [AppColors.amberDim, AppColors.surface]
+                : [AppColors.amber, const Color(0xFFC1873E)],
+          ),
+          borderRadius: BorderRadius.circular(AppTheme.r3),
+          border: Border.all(
+            color: isPro ? AppColors.amber : Colors.transparent,
+            width: 1.4,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isPro ? AppColors.amberDim : Colors.white24,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.workspace_premium_rounded,
+                size: 24,
+                color: isPro ? AppColors.amber : AppColors.amberInk,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isPro ? l.profileBillingManage : l.profileBillingProCta,
+                    style: AppTheme.text(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      color: isPro ? AppColors.ink : AppColors.amberInk,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isPro
+                        ? tier.toUpperCase()
+                        : l.profileBillingProCtaSubtitle,
+                    style: AppTheme.text(
+                      size: 12,
+                      color: isPro
+                          ? AppColors.ink3
+                          : AppColors.amberInk.withValues(alpha: 0.78),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isPro ? AppColors.ink3 : AppColors.amberInk,
+            ),
           ],
         ),
       ),

@@ -962,6 +962,36 @@ abstract class AppLocalizations {
   /// **'Высокий рейтинг КиноПоиска'**
   String get recsFeedTopKpLabel;
 
+  /// No description provided for @recsFeedTrendingLabel.
+  ///
+  /// In ru, this message translates to:
+  /// **'Горячее этой недели'**
+  String get recsFeedTrendingLabel;
+
+  /// No description provided for @recsSearchTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Поиск'**
+  String get recsSearchTitle;
+
+  /// No description provided for @recsSearchPlaceholder.
+  ///
+  /// In ru, this message translates to:
+  /// **'Название фильма…'**
+  String get recsSearchPlaceholder;
+
+  /// No description provided for @recsSearchHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Начните печатать — найдём в каталоге и в TMDb'**
+  String get recsSearchHint;
+
+  /// No description provided for @recsSearchNoResults.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ничего не нашлось'**
+  String get recsSearchNoResults;
+
   /// No description provided for @recsFeedMatchPercent.
   ///
   /// In ru, this message translates to:
@@ -1117,6 +1147,42 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Передумал'**
   String get recsTitleIntentRemove;
+
+  /// No description provided for @recsTitleWatchTrailer.
+  ///
+  /// In ru, this message translates to:
+  /// **'Трейлер'**
+  String get recsTitleWatchTrailer;
+
+  /// No description provided for @tasteOnboardingTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Что вам ближе?'**
+  String get tasteOnboardingTitle;
+
+  /// No description provided for @tasteOnboardingSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отметьте 3-5 фильмов — мы подберём похожие и поймём, кого из друзей звать.'**
+  String get tasteOnboardingSubtitle;
+
+  /// No description provided for @tasteOnboardingCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Готово'**
+  String get tasteOnboardingCta;
+
+  /// No description provided for @tasteOnboardingSkip.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пропустить'**
+  String get tasteOnboardingSkip;
+
+  /// No description provided for @tasteOnboardingHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Выбрано: {n}'**
+  String tasteOnboardingHint(int n);
 
   /// No description provided for @onboardingTagTogether.
   ///
@@ -1573,6 +1639,210 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Удалить из друзей?'**
   String get friendsRemoveConfirm;
+
+  /// No description provided for @billingPlansTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Junto Pro'**
+  String get billingPlansTitle;
+
+  /// No description provided for @billingPlansSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Соберите полный зал и смотрите без рекламы'**
+  String get billingPlansSubtitle;
+
+  /// No description provided for @billingPeriodMonthly.
+  ///
+  /// In ru, this message translates to:
+  /// **'В месяц'**
+  String get billingPeriodMonthly;
+
+  /// No description provided for @billingPeriodYearly.
+  ///
+  /// In ru, this message translates to:
+  /// **'В год'**
+  String get billingPeriodYearly;
+
+  /// No description provided for @billingPriceFree.
+  ///
+  /// In ru, this message translates to:
+  /// **'Бесплатно'**
+  String get billingPriceFree;
+
+  /// No description provided for @billingPriceMonthly.
+  ///
+  /// In ru, this message translates to:
+  /// **'{amount} ₽/мес'**
+  String billingPriceMonthly(String amount);
+
+  /// No description provided for @billingPriceYearly.
+  ///
+  /// In ru, this message translates to:
+  /// **'{amount} ₽/год'**
+  String billingPriceYearly(String amount);
+
+  /// No description provided for @billingCtaSubscribe.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оформить'**
+  String get billingCtaSubscribe;
+
+  /// No description provided for @billingCtaCurrent.
+  ///
+  /// In ru, this message translates to:
+  /// **'Активен'**
+  String get billingCtaCurrent;
+
+  /// No description provided for @billingCheckoutTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оплата подписки'**
+  String get billingCheckoutTitle;
+
+  /// No description provided for @billingCheckoutCardNumber.
+  ///
+  /// In ru, this message translates to:
+  /// **'Номер карты'**
+  String get billingCheckoutCardNumber;
+
+  /// No description provided for @billingCheckoutCardExpiry.
+  ///
+  /// In ru, this message translates to:
+  /// **'MM / ГГ'**
+  String get billingCheckoutCardExpiry;
+
+  /// No description provided for @billingCheckoutCardCvc.
+  ///
+  /// In ru, this message translates to:
+  /// **'CVC'**
+  String get billingCheckoutCardCvc;
+
+  /// No description provided for @billingCheckoutPayCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оплатить {amount} ₽'**
+  String billingCheckoutPayCta(String amount);
+
+  /// No description provided for @billingCheckoutDisclaimer.
+  ///
+  /// In ru, this message translates to:
+  /// **'Демо-форма. Реальная оплата не произойдёт.'**
+  String get billingCheckoutDisclaimer;
+
+  /// No description provided for @billingSuccessTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Готово'**
+  String get billingSuccessTitle;
+
+  /// No description provided for @billingSuccessBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Добро пожаловать в {plan}'**
+  String billingSuccessBody(String plan);
+
+  /// No description provided for @billingSuccessCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открыть Junto'**
+  String get billingSuccessCta;
+
+  /// No description provided for @billingManageTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подписка'**
+  String get billingManageTitle;
+
+  /// No description provided for @billingManageActive.
+  ///
+  /// In ru, this message translates to:
+  /// **'Активна до {date}'**
+  String billingManageActive(String date);
+
+  /// No description provided for @billingManageCancelCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отменить подписку'**
+  String get billingManageCancelCta;
+
+  /// No description provided for @billingManageCancelConfirm.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вернуть бесплатный тариф?'**
+  String get billingManageCancelConfirm;
+
+  /// No description provided for @billingManageCancelled.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подписка отменена'**
+  String get billingManageCancelled;
+
+  /// No description provided for @paywallRoomSizeTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Соберите больше друзей'**
+  String get paywallRoomSizeTitle;
+
+  /// No description provided for @paywallRoomSizeBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'С Junto Pro в одной комнате до 10 человек, с Cinema — до 25.'**
+  String get paywallRoomSizeBody;
+
+  /// No description provided for @paywallRoomSizeCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Узнать про Pro'**
+  String get paywallRoomSizeCta;
+
+  /// No description provided for @paywallHistoryTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'История за всё время'**
+  String get paywallHistoryTitle;
+
+  /// No description provided for @paywallHistoryBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Free хранит последние 30 дней. С Pro — навсегда.'**
+  String get paywallHistoryBody;
+
+  /// No description provided for @paywallAdsTitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Без рекламы'**
+  String get paywallAdsTitle;
+
+  /// No description provided for @paywallAdsBody.
+  ///
+  /// In ru, this message translates to:
+  /// **'Junto Pro убирает партнёрские подборки из ленты.'**
+  String get paywallAdsBody;
+
+  /// No description provided for @profileBillingProCta.
+  ///
+  /// In ru, this message translates to:
+  /// **'Junto Pro'**
+  String get profileBillingProCta;
+
+  /// No description provided for @profileBillingProCtaSubtitle.
+  ///
+  /// In ru, this message translates to:
+  /// **'Снять лимиты и убрать рекламу'**
+  String get profileBillingProCtaSubtitle;
+
+  /// No description provided for @profileBillingProBadge.
+  ///
+  /// In ru, this message translates to:
+  /// **'PRO'**
+  String get profileBillingProBadge;
+
+  /// No description provided for @profileBillingManage.
+  ///
+  /// In ru, this message translates to:
+  /// **'Подписка'**
+  String get profileBillingManage;
 }
 
 class _AppLocalizationsDelegate

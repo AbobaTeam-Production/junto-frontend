@@ -477,6 +477,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recsFeedTopKpLabel => 'Top-rated on KinoPoisk';
 
   @override
+  String get recsFeedTrendingLabel => 'Trending this week';
+
+  @override
+  String get recsSearchTitle => 'Search';
+
+  @override
+  String get recsSearchPlaceholder => 'Movie title…';
+
+  @override
+  String get recsSearchHint => 'Type to search — checks catalog and TMDb';
+
+  @override
+  String get recsSearchNoResults => 'Nothing found';
+
+  @override
   String recsFeedMatchPercent(int n) {
     return '$n% match';
   }
@@ -572,6 +587,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recsTitleIntentRemove => 'Never mind';
+
+  @override
+  String get recsTitleWatchTrailer => 'Trailer';
+
+  @override
+  String get tasteOnboardingTitle => 'What\'s your vibe?';
+
+  @override
+  String get tasteOnboardingSubtitle =>
+      'Tap 3-5 films you like — we\'ll find similar picks and know who to invite.';
+
+  @override
+  String get tasteOnboardingCta => 'Done';
+
+  @override
+  String get tasteOnboardingSkip => 'Skip';
+
+  @override
+  String tasteOnboardingHint(int n) {
+    return '$n picked';
+  }
 
   @override
   String get onboardingTagTogether => '01 — Together';
@@ -812,4 +848,119 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get friendsRemoveConfirm => 'Remove from friends?';
+
+  @override
+  String get billingPlansTitle => 'Junto Pro';
+
+  @override
+  String get billingPlansSubtitle => 'Bigger rooms, no ads, full history';
+
+  @override
+  String get billingPeriodMonthly => 'Monthly';
+
+  @override
+  String get billingPeriodYearly => 'Yearly';
+
+  @override
+  String get billingPriceFree => 'Free';
+
+  @override
+  String billingPriceMonthly(String amount) {
+    return '\$$amount/mo';
+  }
+
+  @override
+  String billingPriceYearly(String amount) {
+    return '\$$amount/yr';
+  }
+
+  @override
+  String get billingCtaSubscribe => 'Subscribe';
+
+  @override
+  String get billingCtaCurrent => 'Current';
+
+  @override
+  String get billingCheckoutTitle => 'Subscribe';
+
+  @override
+  String get billingCheckoutCardNumber => 'Card number';
+
+  @override
+  String get billingCheckoutCardExpiry => 'MM / YY';
+
+  @override
+  String get billingCheckoutCardCvc => 'CVC';
+
+  @override
+  String billingCheckoutPayCta(String amount) {
+    return 'Pay \$$amount';
+  }
+
+  @override
+  String get billingCheckoutDisclaimer =>
+      'Demo form. No real charge will be made.';
+
+  @override
+  String get billingSuccessTitle => 'All set';
+
+  @override
+  String billingSuccessBody(String plan) {
+    return 'Welcome to $plan';
+  }
+
+  @override
+  String get billingSuccessCta => 'Open Junto';
+
+  @override
+  String get billingManageTitle => 'Subscription';
+
+  @override
+  String billingManageActive(String date) {
+    return 'Active until $date';
+  }
+
+  @override
+  String get billingManageCancelCta => 'Cancel subscription';
+
+  @override
+  String get billingManageCancelConfirm => 'Return to the free plan?';
+
+  @override
+  String get billingManageCancelled => 'Subscription cancelled';
+
+  @override
+  String get paywallRoomSizeTitle => 'Bring everyone in';
+
+  @override
+  String get paywallRoomSizeBody => 'Pro fits 10 in a room, Cinema — up to 25.';
+
+  @override
+  String get paywallRoomSizeCta => 'Learn about Pro';
+
+  @override
+  String get paywallHistoryTitle => 'Full watch history';
+
+  @override
+  String get paywallHistoryBody =>
+      'Free keeps the last 30 days. Pro keeps it forever.';
+
+  @override
+  String get paywallAdsTitle => 'Ad-free feed';
+
+  @override
+  String get paywallAdsBody =>
+      'Junto Pro hides sponsored picks from your feed.';
+
+  @override
+  String get profileBillingProCta => 'Junto Pro';
+
+  @override
+  String get profileBillingProCtaSubtitle => 'Remove limits and ads';
+
+  @override
+  String get profileBillingProBadge => 'PRO';
+
+  @override
+  String get profileBillingManage => 'Subscription';
 }

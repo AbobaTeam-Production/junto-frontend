@@ -16,12 +16,65 @@ import '../widgets/friend_chip.dart';
 import '../widgets/match_badge.dart';
 import '../widgets/movie_card.dart';
 import '../widgets/poster_placeholder.dart';
+import '../widgets/retryable_image.dart';
 
-class RecsFeedScreen extends ConsumerWidget {
+class RecsFeedScreen extends ConsumerStatefulWidget {
   const RecsFeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecsFeedScreen> createState() => _RecsFeedScreenState();
+}
+
+class _RecsFeedScreenState extends ConsumerState<RecsFeedScreen> {
+  final _prefetchedUrls = <String>{};
+
+  /// Sequentially walks every poster / preview URL in the feed and
+  /// kicks off a `precacheImage` on it. Image.network was stalling
+  /// in Android's connection pool when ~30 grid tiles fetched at
+  /// the same time — sequential prefetch warms the in-memory image
+  /// cache so the grid paints from RAM with no network spike.
+  void _prefetch(BuildContext context, RecsFeed feed) {
+    final urls = <String>[];
+    void add(String? url) {
+      if (url != null && url.isNotEmpty && !_prefetchedUrls.contains(url)) {
+        urls.add(url);
+        _prefetchedUrls.add(url);
+      }
+    }
+
+    if (feed.hero != null) {
+      add(feed.hero!.movie.posterUrl);
+      add(feed.hero!.movie.backdropUrl);
+    }
+    for (final m in feed.trending) {
+      add(m.posterPreviewUrl ?? m.posterUrl);
+    }
+    for (final m in feed.topByKp) {
+      add(m.posterPreviewUrl ?? m.posterUrl);
+    }
+    if (feed.socialRow != null) {
+      for (final m in feed.socialRow!.movies) {
+        add(m.posterPreviewUrl ?? m.posterUrl);
+      }
+    }
+    if (urls.isEmpty) return;
+
+    Future.microtask(() async {
+      for (final url in urls) {
+        if (!mounted || !context.mounted) return;
+        try {
+          await precacheImage(NetworkImage(url), context);
+        } catch (_) {
+          // Single-image failures are fine — Image.network in the
+          // tile will retry on its own, and now without a 30-way
+          // pool contention the retry has a clear runway.
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final feedAsync = ref.watch(recsFeedProvider);
 
@@ -43,10 +96,13 @@ class RecsFeedScreen extends ConsumerWidget {
               ),
             ),
           ),
-          data: (feed) => RefreshIndicator(
-            onRefresh: () async => ref.invalidate(recsFeedProvider),
-            child: _FeedBody(feed: feed),
-          ),
+          data: (feed) {
+            _prefetch(context, feed);
+            return RefreshIndicator(
+              onRefresh: () async => ref.invalidate(recsFeedProvider),
+              child: _FeedBody(feed: feed),
+            );
+          },
         ),
       ),
     );
@@ -108,7 +164,7 @@ class _FeedBody extends ConsumerWidget {
               ),
               if (freeCount > 0)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(bottom: 4, right: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -132,6 +188,24 @@ class _FeedBody extends ConsumerWidget {
                     ],
                   ),
                 ),
+              InkResponse(
+                onTap: () => context.push('/recs/search'),
+                radius: 22,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.hairline),
+                  ),
+                  child: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -182,6 +256,37 @@ class _FeedBody extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: _HeroCard(hero: feed.hero!),
+          ),
+        ],
+
+        // ── Trending this week — TMDb-fed, refreshed every 6h on
+        // the backend.
+        if (feed.trending.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: MonoLabel(
+              l.recsFeedTrendingLabel,
+              color: AppColors.ink3,
+              letterSpacing: 1.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 260,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              itemCount: feed.trending.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (ctx, i) {
+                final movie = feed.trending[i];
+                return MovieCardVertical(
+                  movie: movie,
+                  onTap: () => context.push('/recs/title/${movie.id}'),
+                );
+              },
+            ),
           ),
         ],
 
@@ -504,10 +609,10 @@ class _HeroFallback {
       radius: 0,
     );
     if (url == null) return fallback;
-    return Image.network(
-      url,
+    return RetryableNetworkImage(
+      url: url,
       fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => fallback,
+      placeholderBuilder: (_) => fallback,
     );
   }
 }
@@ -544,6 +649,32 @@ class _MoodTile extends StatelessWidget {
                 ),
               ),
             ),
+            // Ad badge — surfaces the synthetic /recs/feed/ ad slot.
+            // Without it the user can't tell the sponsored card from
+            // a curated mood, which is both confusing and a legal
+            // grey area for paid placement disclosure.
+            if (mood.isSponsored)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.amber,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Реклама',
+                    style: AppTheme.mono(
+                      size: 9,
+                      color: AppColors.amberInk,
+                      weight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
