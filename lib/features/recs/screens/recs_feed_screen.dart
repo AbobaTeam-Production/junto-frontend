@@ -377,16 +377,26 @@ class _FeedBody extends ConsumerWidget {
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.6,
-              children: feed.moods.map((m) {
-                return _MoodTile(mood: m);
-              }).toList(),
+            child: LayoutBuilder(
+              builder: (ctx, cons) {
+                // Two columns at phone width is fine, but on desktop
+                // the same grid stretches each tile to ~600 px wide
+                // and 375 px tall — mostly empty. Use max-extent so
+                // tiles stay ~280 px wide regardless of viewport.
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate:
+                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 320,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.6,
+                  ),
+                  itemCount: feed.moods.length,
+                  itemBuilder: (_, i) => _MoodTile(mood: feed.moods[i]),
+                );
+              },
             ),
           ),
         ],
@@ -649,36 +659,35 @@ class _MoodTile extends StatelessWidget {
                 ),
               ),
             ),
-            // Ad badge — surfaces the synthetic /recs/feed/ ad slot.
-            // Without it the user can't tell the sponsored card from
-            // a curated mood, which is both confusing and a legal
-            // grey area for paid placement disclosure.
-            if (mood.isSponsored)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.amber,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Реклама',
-                    style: AppTheme.mono(
-                      size: 9,
-                      color: AppColors.amberInk,
-                      weight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
+                // Ad badge above the title — paid placement disclosure
+                // for the synthetic /recs/feed/ slot. Sat in the
+                // top-right corner before, but the decorative hue
+                // circle there is amber-tinted too and the badge
+                // disappeared into it.
+                if (mood.isSponsored) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Реклама',
+                      style: AppTheme.mono(
+                        size: 9,
+                        color: AppColors.amberInk,
+                        weight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   mood.title,
                   maxLines: 2,
