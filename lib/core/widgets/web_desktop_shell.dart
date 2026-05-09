@@ -78,6 +78,7 @@ class _TopBar extends ConsumerWidget {
                 Container(
                   width: 28,
                   height: 28,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.amber,
                     shape: BoxShape.circle,
@@ -88,6 +89,17 @@ class _TopBar extends ConsumerWidget {
                         offset: const Offset(0, 8),
                       ),
                     ],
+                  ),
+                  // Same J as the landing favicon — tiny brand cue
+                  // inside the otherwise empty amber dot.
+                  child: Text(
+                    'J',
+                    style: AppTheme.display(
+                      size: 16,
+                      weight: FontWeight.w700,
+                      color: AppColors.amberInk,
+                      height: 1,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
