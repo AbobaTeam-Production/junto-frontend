@@ -1,9 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/pro_paywall_sheet.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -43,12 +45,27 @@ class _JoinRoomSheetState extends ConsumerState<JoinRoomSheet> {
         context.push('/room/${result.roomId}');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.joinRoomError)),
+      if (!mounted) return;
+      setState(() => _loading = false);
+      // 402 from the backend = the host's billing tier doesn't allow
+      // another guest. Surface the upgrade sheet instead of the
+      // generic error toast — the user can buy Pro themselves but
+      // the friend who hosts the room is the one who needs Pro, so
+      // we only show this if the *current user* is the one trying to
+      // join. Either way the paywall copy is informative.
+      if (e is DioException && e.response?.statusCode == 402) {
+        Navigator.of(context).pop();
+        showProPaywall(
+          context,
+          title: l.paywallRoomSizeTitle,
+          body: l.paywallRoomSizeBody,
+          ctaLabel: l.paywallRoomSizeCta,
         );
+        return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.joinRoomError)),
+      );
     }
   }
 

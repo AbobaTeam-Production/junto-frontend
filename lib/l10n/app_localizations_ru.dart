@@ -477,6 +477,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recsFeedTopKpLabel => 'Высокий рейтинг КиноПоиска';
 
   @override
+  String get recsFeedTrendingLabel => 'Горячее этой недели';
+
+  @override
+  String get recsSearchTitle => 'Поиск';
+
+  @override
+  String get recsSearchPlaceholder => 'Название фильма…';
+
+  @override
+  String get recsSearchHint => 'Начните печатать — найдём в каталоге и в TMDb';
+
+  @override
+  String get recsSearchNoResults => 'Ничего не нашлось';
+
+  @override
   String recsFeedMatchPercent(int n) {
     return '$n% совпадение';
   }
@@ -572,6 +587,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get recsTitleIntentRemove => 'Передумал';
+
+  @override
+  String get recsTitleWatchTrailer => 'Трейлер';
+
+  @override
+  String get tasteOnboardingTitle => 'Что вам ближе?';
+
+  @override
+  String get tasteOnboardingSubtitle =>
+      'Отметьте 3-5 фильмов — мы подберём похожие и поймём, кого из друзей звать.';
+
+  @override
+  String get tasteOnboardingCta => 'Готово';
+
+  @override
+  String get tasteOnboardingSkip => 'Пропустить';
+
+  @override
+  String tasteOnboardingHint(int n) {
+    return 'Выбрано: $n';
+  }
 
   @override
   String get onboardingTagTogether => '01 — Together';
@@ -812,4 +848,121 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get friendsRemoveConfirm => 'Удалить из друзей?';
+
+  @override
+  String get billingPlansTitle => 'Junto Pro';
+
+  @override
+  String get billingPlansSubtitle =>
+      'Соберите полный зал и смотрите без рекламы';
+
+  @override
+  String get billingPeriodMonthly => 'В месяц';
+
+  @override
+  String get billingPeriodYearly => 'В год';
+
+  @override
+  String get billingPriceFree => 'Бесплатно';
+
+  @override
+  String billingPriceMonthly(String amount) {
+    return '$amount ₽/мес';
+  }
+
+  @override
+  String billingPriceYearly(String amount) {
+    return '$amount ₽/год';
+  }
+
+  @override
+  String get billingCtaSubscribe => 'Оформить';
+
+  @override
+  String get billingCtaCurrent => 'Активен';
+
+  @override
+  String get billingCheckoutTitle => 'Оплата подписки';
+
+  @override
+  String get billingCheckoutCardNumber => 'Номер карты';
+
+  @override
+  String get billingCheckoutCardExpiry => 'MM / ГГ';
+
+  @override
+  String get billingCheckoutCardCvc => 'CVC';
+
+  @override
+  String billingCheckoutPayCta(String amount) {
+    return 'Оплатить $amount ₽';
+  }
+
+  @override
+  String get billingCheckoutDisclaimer =>
+      'Демо-форма. Реальная оплата не произойдёт.';
+
+  @override
+  String get billingSuccessTitle => 'Готово';
+
+  @override
+  String billingSuccessBody(String plan) {
+    return 'Добро пожаловать в $plan';
+  }
+
+  @override
+  String get billingSuccessCta => 'Открыть Junto';
+
+  @override
+  String get billingManageTitle => 'Подписка';
+
+  @override
+  String billingManageActive(String date) {
+    return 'Активна до $date';
+  }
+
+  @override
+  String get billingManageCancelCta => 'Отменить подписку';
+
+  @override
+  String get billingManageCancelConfirm => 'Вернуть бесплатный тариф?';
+
+  @override
+  String get billingManageCancelled => 'Подписка отменена';
+
+  @override
+  String get paywallRoomSizeTitle => 'Соберите больше друзей';
+
+  @override
+  String get paywallRoomSizeBody =>
+      'С Junto Pro в одной комнате до 10 человек, с Cinema — до 25.';
+
+  @override
+  String get paywallRoomSizeCta => 'Узнать про Pro';
+
+  @override
+  String get paywallHistoryTitle => 'История за всё время';
+
+  @override
+  String get paywallHistoryBody =>
+      'Free хранит последние 30 дней. С Pro — навсегда.';
+
+  @override
+  String get paywallAdsTitle => 'Без рекламы';
+
+  @override
+  String get paywallAdsBody =>
+      'Junto Pro убирает партнёрские подборки из ленты.';
+
+  @override
+  String get profileBillingProCta => 'Junto Pro';
+
+  @override
+  String get profileBillingProCtaSubtitle => 'Снять лимиты и убрать рекламу';
+
+  @override
+  String get profileBillingProBadge => 'PRO';
+
+  @override
+  String get profileBillingManage => 'Подписка';
 }

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../providers/recs_provider.dart';
 import 'match_badge.dart';
 import 'poster_placeholder.dart';
+import 'retryable_image.dart';
 
 /// Vertical poster + title card used in the "Friend wants to watch" row.
 /// Tap to open `/recs/title/<id>`.
@@ -105,10 +106,13 @@ class MovieRowTile extends StatelessWidget {
           children: [
             if (listIndex != null)
               SizedBox(
-                width: 30,
+                width: 42,
                 child: Text(
                   (listIndex! + 1).toString().padLeft(2, '0'),
                   textAlign: TextAlign.right,
+                  softWrap: false,
+                  maxLines: 1,
+                  overflow: TextOverflow.visible,
                   style: AppTheme.display(
                       size: 26,
                       weight: FontWeight.w600,
@@ -201,12 +205,10 @@ class _Poster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (url != null && url!.isNotEmpty) {
-      return Image.network(
-        url!,
+      return RetryableNetworkImage(
+        url: url!,
         fit: BoxFit.cover,
-        loadingBuilder: (ctx, child, prog) =>
-            prog == null ? child : PosterPlaceholder(mood: mood, label: label),
-        errorBuilder: (_, _, _) => PosterPlaceholder(mood: mood, label: label),
+        placeholderBuilder: (_) => PosterPlaceholder(mood: mood, label: label),
       );
     }
     if (fitToBox) {

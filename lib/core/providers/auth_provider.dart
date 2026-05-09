@@ -15,6 +15,14 @@ class AuthUser {
   final int watchSeconds;
   final int friendsCount;
   final int pendingRequestsCount;
+  /// True after the user expressed any movie interest (intent / view).
+  /// The router uses it to redirect cold accounts to the
+  /// taste-capture onboarding screen.
+  final bool hasTasteSignal;
+  /// Subscription state — derived from apps.billing.Subscription.
+  final String tier; // free | pro | cinema
+  final bool isPro;
+  final DateTime? subscriptionExpiresAt;
 
   const AuthUser({
     required this.id,
@@ -25,6 +33,10 @@ class AuthUser {
     this.watchSeconds = 0,
     this.friendsCount = 0,
     this.pendingRequestsCount = 0,
+    this.hasTasteSignal = false,
+    this.tier = 'free',
+    this.isPro = false,
+    this.subscriptionExpiresAt,
   });
 
   bool get isGuest => username.startsWith('Гость_');
@@ -50,6 +62,14 @@ class AuthUser {
       friendsCount: (json['friends_count'] as num?)?.toInt() ?? 0,
       pendingRequestsCount:
           (json['pending_requests_count'] as num?)?.toInt() ?? 0,
+      hasTasteSignal: json['has_taste_signal'] as bool? ?? false,
+      tier: (json['tier'] as String?) ?? 'free',
+      isPro: json['is_pro'] as bool? ?? false,
+      subscriptionExpiresAt: () {
+        final raw = json['subscription_expires_at'] as String?;
+        if (raw == null || raw.isEmpty) return null;
+        return DateTime.tryParse(raw);
+      }(),
     );
   }
 }

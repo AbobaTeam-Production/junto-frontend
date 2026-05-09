@@ -38,9 +38,19 @@ class ApiEndpoints {
 
   // Recommendations
   static const String recsFeed = '/recs/feed/';
+  static const String recsSearch = '/recs/search/';
+  static const String recsOnboardingTaste = '/recs/onboarding/taste/';
   static String recsMatch(int friendId) => '/recs/match/$friendId/';
   static String recsMood(String slug) => '/recs/mood/$slug/';
   static String recsTitle(int movieId) => '/recs/title/$movieId/';
   static String recsTitleIntent(int movieId) => '/recs/title/$movieId/intent/';
   static String recsTitleInvite(int movieId) => '/recs/title/$movieId/invite/';
+
+  // Billing
+  static const String billingPlans = '/billing/plans/';
+  static const String billingSubscription = '/billing/subscription/';
+  static const String billingCheckout = '/billing/checkout/';
+  static String billingCheckoutComplete(int sessionId) =>
+      '/billing/checkout/$sessionId/complete/';
+  static const String billingCancel = '/billing/cancel/';
 }

@@ -208,6 +208,11 @@
   },
   "recsFeedMoodsLabel": "По настроению",
   "recsFeedTopKpLabel": "Высокий рейтинг КиноПоиска",
+  "recsFeedTrendingLabel": "Горячее этой недели",
+  "recsSearchTitle": "Поиск",
+  "recsSearchPlaceholder": "Название фильма…",
+  "recsSearchHint": "Начните печатать — найдём в каталоге и в TMDb",
+  "recsSearchNoResults": "Ничего не нашлось",
   "recsFeedMatchPercent": "{n}% совпадение",
   "@recsFeedMatchPercent": {
     "placeholders": { "n": { "type": "int" } }
@@ -268,6 +273,16 @@
   "recsTitleCtaJoinSelf": "Создать комнату",
   "recsTitleIntentAdd": "Хочу посмотреть",
   "recsTitleIntentRemove": "Передумал",
+  "recsTitleWatchTrailer": "Трейлер",
+
+  "tasteOnboardingTitle": "Что вам ближе?",
+  "tasteOnboardingSubtitle": "Отметьте 3-5 фильмов — мы подберём похожие и поймём, кого из друзей звать.",
+  "tasteOnboardingCta": "Готово",
+  "tasteOnboardingSkip": "Пропустить",
+  "tasteOnboardingHint": "Выбрано: {n}",
+  "@tasteOnboardingHint": {
+    "placeholders": { "n": { "type": "int" } }
+  },
 
   "onboardingTagTogether": "01 — Together",
   "onboardingTagOneRoom": "02 — В одной комнате",
@@ -368,5 +383,57 @@
   "friendsActionAccept": "Принять",
   "friendsActionDecline": "Отклонить",
   "friendsActionRemove": "Удалить",
-  "friendsRemoveConfirm": "Удалить из друзей?"
+  "friendsRemoveConfirm": "Удалить из друзей?",
+
+  "billingPlansTitle": "Junto Pro",
+  "billingPlansSubtitle": "Соберите полный зал и смотрите без рекламы",
+  "billingPeriodMonthly": "В месяц",
+  "billingPeriodYearly": "В год",
+  "billingPriceFree": "Бесплатно",
+  "billingPriceMonthly": "{amount} ₽/мес",
+  "@billingPriceMonthly": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingPriceYearly": "{amount} ₽/год",
+  "@billingPriceYearly": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingCtaSubscribe": "Оформить",
+  "billingCtaCurrent": "Активен",
+  "billingCheckoutTitle": "Оплата подписки",
+  "billingCheckoutCardNumber": "Номер карты",
+  "billingCheckoutCardExpiry": "MM / ГГ",
+  "billingCheckoutCardCvc": "CVC",
+  "billingCheckoutPayCta": "Оплатить {amount} ₽",
+  "@billingCheckoutPayCta": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingCheckoutDisclaimer": "Демо-форма. Реальная оплата не произойдёт.",
+  "billingSuccessTitle": "Готово",
+  "billingSuccessBody": "Добро пожаловать в {plan}",
+  "@billingSuccessBody": {
+    "placeholders": { "plan": { "type": "String" } }
+  },
+  "billingSuccessCta": "Открыть Junto",
+  "billingManageTitle": "Подписка",
+  "billingManageActive": "Активна до {date}",
+  "@billingManageActive": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "billingManageCancelCta": "Отменить подписку",
+  "billingManageCancelConfirm": "Вернуть бесплатный тариф?",
+  "billingManageCancelled": "Подписка отменена",
+
+  "paywallRoomSizeTitle": "Соберите больше друзей",
+  "paywallRoomSizeBody": "С Junto Pro в одной комнате до 10 человек, с Cinema — до 25.",
+  "paywallRoomSizeCta": "Узнать про Pro",
+  "paywallHistoryTitle": "История за всё время",
+  "paywallHistoryBody": "Free хранит последние 30 дней. С Pro — навсегда.",
+  "paywallAdsTitle": "Без рекламы",
+  "paywallAdsBody": "Junto Pro убирает партнёрские подборки из ленты.",
+
+  "profileBillingProCta": "Junto Pro",
+  "profileBillingProCtaSubtitle": "Снять лимиты и убрать рекламу",
+  "profileBillingProBadge": "PRO",
+  "profileBillingManage": "Подписка"
 }

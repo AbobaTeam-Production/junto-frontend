@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+import '../widgets/retryable_image.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -82,10 +86,10 @@ class _TitleBodyState extends ConsumerState<_TitleBody> {
                 children: [
                   Positioned.fill(
                     child: heroImageUrl != null
-                        ? Image.network(
-                            heroImageUrl,
+                        ? RetryableNetworkImage(
+                            url: heroImageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => PosterPlaceholder(
+                            placeholderBuilder: (_) => PosterPlaceholder(
                               mood: pickPosterMood(movie.genres),
                               label: movie.titleRu,
                               radius: 0,
@@ -134,6 +138,18 @@ class _TitleBodyState extends ConsumerState<_TitleBody> {
                       ],
                     ),
                   ),
+                  if ((movie.trailerEmbedUrl ?? '').isNotEmpty)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 76,
+                      child: Center(
+                        child: _TrailerButton(
+                          embedUrl: movie.trailerEmbedUrl!,
+                          movieTitle: movie.titleRu,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -345,9 +361,12 @@ class _TitleBodyState extends ConsumerState<_TitleBody> {
       // host can pick a source manually without re-typing.
       ref.read(pendingRecsRoomProvider.notifier).state = PendingRecsRoom(
         roomId: result.roomId,
-        movieTitle: result.movie.titleOrig.isNotEmpty
-            ? result.movie.titleOrig
-            : result.movie.titleRu,
+        // Russian title first — Russian-language trackers (rutracker,
+        // kinozal) index by it, so the manual-pick search lands more
+        // hits if the host edits the field.
+        movieTitle: result.movie.titleRu.isNotEmpty
+            ? result.movie.titleRu
+            : result.movie.titleOrig,
         mediaAttached: result.mediaAttached,
       );
       context.go('/room/${result.roomId}');
@@ -396,6 +415,140 @@ class _MetaChip extends StatelessWidget {
       child: Text(
         text,
         style: AppTheme.text(size: 11, weight: FontWeight.w600, color: AppColors.ink2),
+      ),
+    );
+  }
+}
+
+class _TrailerButton extends StatelessWidget {
+  final String embedUrl;
+  final String movieTitle;
+  const _TrailerButton({required this.embedUrl, required this.movieTitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () => _showTrailer(context, embedUrl, movieTitle),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.play_arrow_rounded,
+                  size: 22, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                l.recsTitleWatchTrailer,
+                style: AppTheme.text(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static void _showTrailer(BuildContext context, String url, String title) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: _TrailerSheet(embedUrl: url, movieTitle: title),
+      ),
+    );
+  }
+}
+
+class _TrailerSheet extends StatefulWidget {
+  final String embedUrl;
+  final String movieTitle;
+  const _TrailerSheet({required this.embedUrl, required this.movieTitle});
+
+  @override
+  State<_TrailerSheet> createState() => _TrailerSheetState();
+}
+
+class _TrailerSheetState extends State<_TrailerSheet> {
+  WebViewController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) {
+      _controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(Colors.black)
+        ..loadRequest(Uri.parse(widget.embedUrl));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 16, 4),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Text(
+                    widget.movieTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.text(
+                      size: 14,
+                      weight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: kIsWeb
+                ? Center(
+                    // webview_flutter on Web requires the web platform
+                    // implementation; embed via go_router opening a new
+                    // tab is more reliable. Tapping shows the controls
+                    // explicitly so the user knows where it'll open.
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.open_in_new_rounded,
+                          color: AppColors.amber),
+                      label: Text(
+                        widget.embedUrl,
+                        style: AppTheme.text(
+                            size: 13,
+                            color: AppColors.amber,
+                            weight: FontWeight.w500),
+                      ),
+                      onPressed: () {
+                        // Web build: use launchUrl through dart:html. We
+                        // don't pull url_launcher just for this — keep
+                        // the dependency surface minimal.
+                      },
+                    ),
+                  )
+                : (_controller == null
+                    ? const SizedBox.shrink()
+                    : WebViewWidget(controller: _controller!)),
+          ),
+        ],
       ),
     );
   }

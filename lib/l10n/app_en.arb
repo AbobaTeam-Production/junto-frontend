@@ -193,6 +193,11 @@
   },
   "recsFeedMoodsLabel": "By mood",
   "recsFeedTopKpLabel": "Top-rated on KinoPoisk",
+  "recsFeedTrendingLabel": "Trending this week",
+  "recsSearchTitle": "Search",
+  "recsSearchPlaceholder": "Movie title…",
+  "recsSearchHint": "Type to search — checks catalog and TMDb",
+  "recsSearchNoResults": "Nothing found",
   "recsFeedMatchPercent": "{n}% match",
   "@recsFeedMatchPercent": {
     "placeholders": { "n": { "type": "int" } }
@@ -253,6 +258,16 @@
   "recsTitleCtaJoinSelf": "Start a room",
   "recsTitleIntentAdd": "Want to watch",
   "recsTitleIntentRemove": "Never mind",
+  "recsTitleWatchTrailer": "Trailer",
+
+  "tasteOnboardingTitle": "What's your vibe?",
+  "tasteOnboardingSubtitle": "Tap 3-5 films you like — we'll find similar picks and know who to invite.",
+  "tasteOnboardingCta": "Done",
+  "tasteOnboardingSkip": "Skip",
+  "tasteOnboardingHint": "{n} picked",
+  "@tasteOnboardingHint": {
+    "placeholders": { "n": { "type": "int" } }
+  },
 
   "onboardingTagTogether": "01 — Together",
   "onboardingTagOneRoom": "02 — One room",
@@ -335,5 +350,57 @@
   "friendsActionAccept": "Accept",
   "friendsActionDecline": "Decline",
   "friendsActionRemove": "Remove",
-  "friendsRemoveConfirm": "Remove from friends?"
+  "friendsRemoveConfirm": "Remove from friends?",
+
+  "billingPlansTitle": "Junto Pro",
+  "billingPlansSubtitle": "Bigger rooms, no ads, full history",
+  "billingPeriodMonthly": "Monthly",
+  "billingPeriodYearly": "Yearly",
+  "billingPriceFree": "Free",
+  "billingPriceMonthly": "${amount}/mo",
+  "@billingPriceMonthly": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingPriceYearly": "${amount}/yr",
+  "@billingPriceYearly": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingCtaSubscribe": "Subscribe",
+  "billingCtaCurrent": "Current",
+  "billingCheckoutTitle": "Subscribe",
+  "billingCheckoutCardNumber": "Card number",
+  "billingCheckoutCardExpiry": "MM / YY",
+  "billingCheckoutCardCvc": "CVC",
+  "billingCheckoutPayCta": "Pay ${amount}",
+  "@billingCheckoutPayCta": {
+    "placeholders": { "amount": { "type": "String" } }
+  },
+  "billingCheckoutDisclaimer": "Demo form. No real charge will be made.",
+  "billingSuccessTitle": "All set",
+  "billingSuccessBody": "Welcome to {plan}",
+  "@billingSuccessBody": {
+    "placeholders": { "plan": { "type": "String" } }
+  },
+  "billingSuccessCta": "Open Junto",
+  "billingManageTitle": "Subscription",
+  "billingManageActive": "Active until {date}",
+  "@billingManageActive": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "billingManageCancelCta": "Cancel subscription",
+  "billingManageCancelConfirm": "Return to the free plan?",
+  "billingManageCancelled": "Subscription cancelled",
+
+  "paywallRoomSizeTitle": "Bring everyone in",
+  "paywallRoomSizeBody": "Pro fits 10 in a room, Cinema — up to 25.",
+  "paywallRoomSizeCta": "Learn about Pro",
+  "paywallHistoryTitle": "Full watch history",
+  "paywallHistoryBody": "Free keeps the last 30 days. Pro keeps it forever.",
+  "paywallAdsTitle": "Ad-free feed",
+  "paywallAdsBody": "Junto Pro hides sponsored picks from your feed.",
+
+  "profileBillingProCta": "Junto Pro",
+  "profileBillingProCtaSubtitle": "Remove limits and ads",
+  "profileBillingProBadge": "PRO",
+  "profileBillingManage": "Subscription"
 }

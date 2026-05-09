@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../api/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/onboarding/screens/onboarding_taste_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
-import '../../features/home/screens/home_screen.dart';
-import '../../features/rooms/screens/rooms_screen.dart';
-import '../../features/profile/screens/profile_screen.dart';
+import '../../features/home/screens/home_responsive.dart';
+import '../../features/rooms/screens/rooms_responsive.dart';
+import '../../features/profile/screens/profile_responsive.dart';
 import '../../features/profile/screens/friends_screen.dart';
 import '../../features/shell/screens/shell_screen.dart';
 import '../../features/room/screens/room_screen.dart';
@@ -16,7 +17,12 @@ import '../../features/splash/splash_screen.dart';
 import '../../features/recs/screens/recs_feed_screen.dart';
 import '../../features/recs/screens/recs_match_screen.dart';
 import '../../features/recs/screens/recs_mood_screen.dart';
+import '../../features/recs/screens/recs_search_screen.dart';
 import '../../features/recs/screens/recs_title_screen.dart';
+import '../../features/billing/screens/billing_plans_screen.dart';
+import '../../features/billing/screens/billing_checkout_screen.dart';
+import '../../features/billing/screens/billing_success_screen.dart';
+import '../../features/billing/screens/billing_manage_screen.dart';
 
 /// Bridges Riverpod → GoRouter: notifies GoRouter to re-evaluate redirects
 /// whenever auth state changes, without recreating the router.
@@ -40,6 +46,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: (context, state) {
       final status = ref.read(authStateProvider).status;
+      final user = ref.read(authStateProvider).user;
       final path = state.uri.path;
 
       // While auth is still loading we park on /splash. Cold-start used to
@@ -51,7 +58,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Auth is now resolved — bail out of /splash to the right destination.
       if (path == '/splash') {
-        if (status == AuthStatus.authenticated) return '/home';
+        if (status == AuthStatus.authenticated) {
+          // Cold accounts go through taste capture first so the recs
+          // feed isn't empty on their first open.
+          if (user != null && !user.isGuest && !user.hasTasteSignal) {
+            return '/onboarding/taste';
+          }
+          return '/home';
+        }
         return seenOnboarding ? '/login' : '/onboarding';
       }
 
@@ -70,6 +84,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/home';
       }
 
+      // After login of a fresh account — push them through the taste
+      // capture once before the empty feed. Once they submit (or skip)
+      // the profile flips has_taste_signal=true and this redirect
+      // stops bouncing.
+      if (status == AuthStatus.authenticated &&
+          user != null &&
+          !user.isGuest &&
+          !user.hasTasteSignal &&
+          path != '/onboarding/taste') {
+        return '/onboarding/taste';
+      }
+
       return null;
     },
     routes: [
@@ -79,6 +105,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         pageBuilder: (context, state) => const NoTransitionPage(
           child: SplashScreen(),
+        ),
+      ),
+
+      // Cold-start taste capture — gated by `has_taste_signal` in the
+      // profile. Shown once per fresh account.
+      GoRoute(
+        path: '/onboarding/taste',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const OnboardingTasteScreen(),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
         ),
       ),
 
@@ -132,7 +170,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/home',
                 pageBuilder: (context, state) => const NoTransitionPage(
-                  child: HomeScreen(),
+                  child: HomeResponsive(),
                 ),
               ),
             ],
@@ -154,7 +192,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/rooms',
                 pageBuilder: (context, state) => const NoTransitionPage(
-                  child: RoomsScreen(),
+                  child: RoomsResponsive(),
                 ),
               ),
             ],
@@ -165,7 +203,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/profile',
                 pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ProfileScreen(),
+                  child: ProfileResponsive(),
                 ),
               ),
             ],
@@ -174,6 +212,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Recs sub-routes — outside shell, pushed from feed
+      GoRoute(
+        path: '/recs/search',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const RecsSearchScreen(),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
       GoRoute(
         path: '/recs/match/:friendId',
         pageBuilder: (context, state) => CustomTransitionPage(
@@ -233,6 +280,63 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               parent: animation,
               curve: Curves.easeOutCubic,
             )),
+            child: child,
+          ),
+        ),
+      ),
+
+      // Billing — outside shell, pushed from Profile / paywall sheets.
+      GoRoute(
+        path: '/billing/plans',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: BillingPlansScreen(
+            highlightedSlug: state.uri.queryParameters['plan'],
+          ),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(CurvedAnimation(
+                    parent: animation, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/billing/checkout',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: BillingCheckoutScreen(
+            planSlug: state.uri.queryParameters['plan'] ?? 'pro',
+            period: state.uri.queryParameters['period'] ?? 'monthly',
+          ),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+                .animate(CurvedAnimation(
+                    parent: animation, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/billing/success',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: BillingSuccessScreen(
+            planSlug: state.uri.queryParameters['plan'] ?? 'pro',
+          ),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
+      GoRoute(
+        path: '/billing/manage',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const BillingManageScreen(),
+          transitionsBuilder: (context, animation, _, child) => SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+                .animate(CurvedAnimation(
+                    parent: animation, curve: Curves.easeOutCubic)),
             child: child,
           ),
         ),

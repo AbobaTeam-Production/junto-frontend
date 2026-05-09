@@ -875,7 +875,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
     final wsState = ref.watch(roomWsProvider(widget.roomId));
     final playerState = wsState.player;
-    final isWide = MediaQuery.of(context).size.width > 800;
+    // 900-px breakpoint matches the desktop shell — keeps the room layout
+    // in lockstep with the navigation chrome so a window resize that drops
+    // the sidebar also drops the side-by-side player+chat.
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width >= 900;
+    final isWebDesktop = kIsWeb && isWide;
 
     final l = AppLocalizations.of(context);
     final inviteCode = roomAsync.whenOrNull(
@@ -898,9 +903,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               title: playerState.title ?? l.homeRoomLabel,
               inviteCode: inviteCode,
               onlineCount: onlineCount,
+              showLeaveButton: isWebDesktop,
             ),
             Expanded(
-              child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
+              child: isWide
+                  ? _buildWideLayout(webDesktop: isWebDesktop)
+                  : _buildNarrowLayout(),
             ),
           ],
         ),
@@ -914,10 +922,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     required String title,
     required String inviteCode,
     required int onlineCount,
+    bool showLeaveButton = false,
   }) {
     final l = AppLocalizations.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 14, 8),
+      padding: showLeaveButton
+          ? const EdgeInsets.fromLTRB(24, 12, 24, 12)
+          : const EdgeInsets.fromLTRB(18, 8, 14, 8),
       child: Row(
         children: [
           InkResponse(
@@ -1010,6 +1021,34 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
               ),
             ),
           ),
+          if (showLeaveButton) ...[
+            const SizedBox(width: 12),
+            Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: () => _showLeaveDialog(context),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.hairline),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    l.roomLeaveConfirm,
+                    style: AppTheme.text(
+                      size: 13,
+                      weight: FontWeight.w500,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1227,8 +1266,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
     );
   }
 
-  Widget _buildWideLayout() {
+  Widget _buildWideLayout({bool webDesktop = false}) {
+    final stagePadding = webDesktop
+        ? const EdgeInsets.fromLTRB(24, 16, 24, 16)
+        : const EdgeInsets.fromLTRB(16, 0, 8, 0);
+    final sidebarWidth = webDesktop ? 380.0 : 360.0;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           flex: 3,
@@ -1236,7 +1280,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
             children: [
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                  padding: stagePadding,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppTheme.r2),
                     child: _buildVideoPlayer(),
@@ -1251,33 +1295,195 @@ class _RoomScreenState extends ConsumerState<RoomScreen>
                     : CrossFadeState.showSecond,
                 duration: const Duration(milliseconds: 200),
               ),
+              if (webDesktop) _buildVoiceQueuePeek(),
             ],
           ),
         ),
-        Container(width: 1, color: AppColors.hairline),
-        SizedBox(
-          width: 360,
-          child: Container(
+        Container(
+          decoration: const BoxDecoration(
             color: AppColors.bg,
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                _buildTabStrip(),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      ChatPanel(roomId: widget.roomId),
-                      ParticipantList(roomId: widget.roomId),
-                      QueuePanel(roomId: widget.roomId, isHost: _isHost),
-                    ],
-                  ),
+            border: Border(left: BorderSide(color: AppColors.hairline)),
+          ),
+          width: sidebarWidth,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              _buildTabStrip(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    ChatPanel(roomId: widget.roomId),
+                    ParticipantList(roomId: widget.roomId),
+                    QueuePanel(roomId: widget.roomId, isHost: _isHost),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Web-desktop only — voice mic + queue peek strip beneath the player.
+  /// Mirrors the design's bottom row: a microphone toggle on the left and
+  /// a "next in queue" preview on the right. Native wide-tablet layouts
+  /// keep using the room-level [_buildControls] above only.
+  Widget _buildVoiceQueuePeek() {
+    final voiceState = ref.watch(voiceChatProvider(widget.roomId));
+    final isMicActive = voiceState.isActive && !voiceState.isMuted;
+    final roomAsync = ref.watch(roomDetailProvider(widget.roomId));
+    final mediaList = roomAsync.maybeWhen(
+      data: (data) => (data['media'] as List?) ?? [],
+      orElse: () => const [],
+    );
+    final upcoming = mediaList.length > 1
+        ? mediaList
+            .skip(1)
+            .map((m) => (m as Map<String, dynamic>)['title'] as String?)
+            .whereType<String>()
+            .toList()
+        : <String>[];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      child: Row(
+        children: [
+          // Voice card
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.hairline),
+                borderRadius: BorderRadius.circular(AppTheme.r2),
+              ),
+              child: Row(
+                children: [
+                  Material(
+                    color: isMicActive ? AppColors.live : AppColors.surface2,
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      onTap: _onMicTap,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isMicActive
+                                  ? Icons.mic_rounded
+                                  : Icons.mic_off_rounded,
+                              size: 14,
+                              color: isMicActive
+                                  ? const Color(0xFF173417)
+                                  : AppColors.ink2,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isMicActive ? 'Микрофон вкл' : 'Включить микрофон',
+                              style: AppTheme.text(
+                                size: 12,
+                                weight: FontWeight.w600,
+                                color: isMicActive
+                                    ? const Color(0xFF173417)
+                                    : AppColors.ink2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      voiceState.speakingPeers.isEmpty
+                          ? 'Никто сейчас не говорит'
+                          : 'В эфире · ${voiceState.speakingPeers.length}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.text(
+                        size: 12,
+                        color: AppColors.ink3,
+                        weight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Queue peek
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.hairline),
+                borderRadius: BorderRadius.circular(AppTheme.r2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.playlist_play_rounded,
+                    size: 18,
+                    color: AppColors.ink2,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MonoLabel(
+                          upcoming.isEmpty
+                              ? 'Дальше · очередь пуста'
+                              : 'Дальше · ${upcoming.length} в очереди',
+                          color: AppColors.ink3,
+                          letterSpacing: 1.4,
+                          size: 9,
+                        ),
+                        if (upcoming.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            upcoming.take(2).join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.text(
+                              size: 13,
+                              weight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _tabController.animateTo(2),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 4),
+                      child: Text(
+                        'Открыть →',
+                        style: AppTheme.text(
+                          size: 12,
+                          color: AppColors.amber,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
