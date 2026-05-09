@@ -587,7 +587,7 @@ class _BetaCard extends StatelessWidget {
           MonoLabel('Beta', color: AppColors.amber, letterSpacing: 1.6, size: 9),
           const SizedBox(height: 4),
           Text(
-            'Веб-плеер пока без AirPlay/Chromecast. Сообщить о проблеме →',
+            'Бета-версия. Возможны баги — пишите в issues.',
             style: AppTheme.text(
               size: 11,
               color: AppColors.ink3,

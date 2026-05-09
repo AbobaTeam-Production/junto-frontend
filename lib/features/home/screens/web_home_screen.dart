@@ -170,8 +170,12 @@ class _HeroStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 220 was just enough for the Create hero but the Join card with
+    // its label + 6-box row + button + helper line overflowed by
+    // ~24 px, jamming the button against the bottom border. 260 fits
+    // both with comfortable breathing room.
     return SizedBox(
-      height: 220,
+      height: 260,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
