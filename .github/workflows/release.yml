@@ -31,7 +31,14 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --release
+      # Native builds need an explicit prod backend; without dart-defines
+      # ServerConfig falls back to junto.local (dev mkcert) and the app
+      # surfaces 'Ошибка сети' on first launch.
+      - run: |
+          flutter build apk --release \
+            --dart-define=SERVER_HOST=api.juntoapp.tech \
+            --dart-define=SERVER_SCHEME=https \
+            --dart-define=SERVER_PORT=443
       - name: Rename and hash
         run: |
           mkdir -p artifacts
@@ -52,7 +59,11 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
+      - run: |
+          flutter build windows --release `
+            --dart-define=SERVER_HOST=api.juntoapp.tech `
+            --dart-define=SERVER_SCHEME=https `
+            --dart-define=SERVER_PORT=443
 
       # Build a real Inno Setup installer instead of a fake .exe-renamed-zip.
       # innosetup is preinstalled on windows-latest GH runners as `iscc`.
