@@ -315,6 +315,94 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLabel => 'Profile';
 
   @override
+  String get profileTabAccount => 'Account';
+
+  @override
+  String get profileTabAudioVideo => 'Audio & mic';
+
+  @override
+  String get profileTabSessions => 'Sessions';
+
+  @override
+  String get profileNickname => 'Nickname';
+
+  @override
+  String get profileEmail => 'Email';
+
+  @override
+  String get profileEdit => 'Edit';
+
+  @override
+  String get profileChange => 'Change';
+
+  @override
+  String get profileOpen => 'Open →';
+
+  @override
+  String get profilePushOn => 'Push on';
+
+  @override
+  String get profilePushOff => 'Push off';
+
+  @override
+  String get profilePushDesc => 'Friends, invites, reactions';
+
+  @override
+  String get profileAudioVideoGroup => 'Audio · video · language';
+
+  @override
+  String get profileSystemDevice => 'System device';
+
+  @override
+  String get profileSessionsGroup => 'Last sessions';
+
+  @override
+  String get profileSessionsHistory => 'Watch history';
+
+  @override
+  String get profileSessionsHistoryDesc => 'All your shared watches';
+
+  @override
+  String get profileSessionsEmpty => 'No sessions yet';
+
+  @override
+  String get profileSessionsEmptyDesc => 'Your first session will show up here';
+
+  @override
+  String get profileLicensesDesc => 'Open-source components';
+
+  @override
+  String get profileGuestMode => 'You\'re in guest mode';
+
+  @override
+  String get profileGuestModeDesc =>
+      'Sign in to sync settings and keep your friends list.';
+
+  @override
+  String get profileFcmPermissionDenied =>
+      'Permission denied — check site / app settings.';
+
+  @override
+  String get profileFcmUnsupported =>
+      'This platform doesn\'t support push notifications.';
+
+  @override
+  String profileFcmBackendError(String error) {
+    return 'Server rejected the token: $error';
+  }
+
+  @override
+  String profileFcmInitError(String error) {
+    return 'Couldn\'t initialise FCM: $error';
+  }
+
+  @override
+  String get profileEditButton => 'Edit';
+
+  @override
+  String get loginSubmit => 'Sign in';
+
+  @override
   String get profileGuestLabel => 'Guest';
 
   @override
