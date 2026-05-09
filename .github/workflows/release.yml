@@ -53,15 +53,59 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
-      - name: Package
+
+      # Build a real Inno Setup installer instead of a fake .exe-renamed-zip.
+      # innosetup is preinstalled on windows-latest GH runners as `iscc`.
+      - name: Generate Inno Setup script
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $version = '${{ github.event.inputs.version || github.ref_name }}'.TrimStart('v')
+          if (-not $version) { $version = '0.0.0' }
+          $iss = @"
+          [Setup]
+          AppName=Junto
+          AppVersion=$version
+          AppPublisher=AbobaTeam Production
+          AppPublisherURL=https://juntoapp.tech
+          DefaultDirName={autopf}\Junto
+          DefaultGroupName=Junto
+          DisableProgramGroupPage=yes
+          OutputDir=artifacts
+          OutputBaseFilename=junto-windows-setup
+          Compression=lzma
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          WizardStyle=modern
+          PrivilegesRequired=lowest
+          UninstallDisplayIcon={app}\junto.exe
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\Junto"; Filename: "{app}\junto.exe"
+          Name: "{autodesktop}\Junto"; Filename: "{app}\junto.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Создать ярлык на рабочем столе"; GroupDescription: "Дополнительные значки:"
+
+          [Run]
+          Filename: "{app}\junto.exe"; Description: "Запустить Junto"; Flags: nowait postinstall skipifsilent
+          "@
+          $iss | Out-File -Encoding utf8 artifacts\junto.iss
+
+      - name: Compile installer with Inno Setup
+        shell: pwsh
+        run: |
+          # Inno Setup 6 ships preinstalled on windows-latest as iscc.exe in PATH.
+          iscc artifacts\junto.iss
+          # Also keep a portable .zip for users who don't want an installer.
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath artifacts\junto-windows-portable.zip
-          # NOTE: real installer would use Inno Setup / MSIX. The portable .zip is enough for the download button.
-          Copy-Item artifacts\junto-windows-portable.zip artifacts\junto-windows-setup.exe
           $h = (Get-FileHash artifacts\junto-windows-setup.exe -Algorithm SHA256).Hash.ToLower()
           "$h  junto-windows-setup.exe" | Out-File -Encoding ascii artifacts\junto-windows-setup.exe.sha256
+          Remove-Item artifacts\junto.iss
       - uses: actions/upload-artifact@v4
         with:
           name: windows
