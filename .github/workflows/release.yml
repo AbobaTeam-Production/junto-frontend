@@ -81,6 +81,12 @@ jobs:
           $out   = "$root\artifacts"
           $iss = @"
           [Setup]
+          ; AppId must be a stable GUID across all releases — without it
+          ; Inno Setup generates a fresh one per build and Windows treats
+          ; each release as a separate program (two Junto entries in
+          ; Programs and Features). With this stable id, installing 0.7.x+1
+          ; over 0.7.x upgrades in place.
+          AppId={{B91A6E5C-7E2C-4E43-B2C1-9F85A1D8A0F2}
           AppName=Junto
           AppVersion=$version
           AppPublisher=AbobaTeam Production
@@ -97,6 +103,9 @@ jobs:
           WizardStyle=modern
           PrivilegesRequired=lowest
           UninstallDisplayIcon={app}\junto.exe
+          ; Quietly stop a running Junto so installer can replace the .exe
+          CloseApplications=force
+          RestartApplications=yes
 
           [Files]
           Source: "$build"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
