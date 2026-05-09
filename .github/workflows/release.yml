@@ -74,6 +74,10 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # No linux/ folder is checked into the repo (only android/, ios/,
+      # web/, windows/), so add the desktop scaffolding on the runner
+      # before building. Idempotent — Flutter only writes missing files.
+      - run: flutter create --platforms=linux --project-name junto .
       - run: flutter build linux --release
       - name: Bundle as tarball (AppImage tooling lives outside this minimal pipeline)
         run: |
