@@ -1,0 +1,67 @@
+name: Deploy Web build to VPS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      # Don't rebuild for changes that can't affect web output.
+      - '**.md'
+      - '.github/workflows/release.yml'
+      - 'android/**'
+      - 'ios/**'
+      - 'macos/**'
+      - 'linux/**'
+      - 'windows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: web-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter build web --release
+
+      # SERVER_HOST/SCHEME aren't needed — on Web ServerConfig uses
+      # Uri.base.origin and the api/ws are reverse-proxied through
+      # nginx on the same host as the web bundle.
+
+      - name: Pack tarball
+        run: tar -czf junto-web.tgz -C build/web .
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.WEB_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.WEB_DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Ship tarball
+        env:
+          USER: ${{ secrets.WEB_DEPLOY_USER }}
+          HOST: ${{ secrets.WEB_DEPLOY_HOST }}
+        run: |
+          scp -i ~/.ssh/id_ed25519 junto-web.tgz \
+              "$USER@$HOST:/srv/junto/web-incoming/junto-web.tgz"
+
+      - name: Swap volume on VPS
+        env:
+          USER: ${{ secrets.WEB_DEPLOY_USER }}
+          HOST: ${{ secrets.WEB_DEPLOY_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "$USER@$HOST" \
+              'sudo bash /srv/junto/web-deploy.sh'
