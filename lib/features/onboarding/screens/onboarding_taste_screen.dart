@@ -59,7 +59,10 @@ class _OnboardingTasteScreenState extends ConsumerState<OnboardingTasteScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: asyncMovies.when(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: asyncMovies.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(strokeWidth: 2)),
           error: (_, _) => Center(
@@ -183,6 +186,8 @@ class _OnboardingTasteScreenState extends ConsumerState<OnboardingTasteScreen> {
                 ),
               ),
             ],
+          ),
+        ),
           ),
         ),
       ),

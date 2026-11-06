@@ -54,86 +54,91 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: AnimatedOpacity(
-                duration: 250.ms,
-                opacity: isLast ? 0 : 1,
-                child: TextButton(
-                  onPressed: isLast ? null : _finish,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.ink3,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AnimatedOpacity(
+                    duration: 250.ms,
+                    opacity: isLast ? 0 : 1,
+                    child: TextButton(
+                      onPressed: isLast ? null : _finish,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.ink3,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      ),
+                      child: Text(l.onboardingSkipButton),
+                    ),
                   ),
-                  child: Text(l.onboardingSkipButton),
                 ),
-              ),
-            ),
-            Expanded(
-              child: PageView(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                children: const [
-                  _PageEditorial(),
-                  _PageDiorama(),
-                  _PageBento(),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-              child: Row(
-                children: [
-                  Row(
-                    children: List.generate(3, (i) {
-                      final on = i == _currentPage;
-                      return AnimatedContainer(
-                        duration: 250.ms,
-                        margin: const EdgeInsets.only(right: 6),
-                        width: on ? 24 : 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: on ? AppColors.amber : AppColors.hairline,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      );
-                    }),
+                Expanded(
+                  child: PageView(
+                    controller: _controller,
+                    onPageChanged: (i) => setState(() => _currentPage = i),
+                    children: const [
+                      _PageEditorial(),
+                      _PageDiorama(),
+                      _PageBento(),
+                    ],
                   ),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _next,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.fromLTRB(24, 14, 22, 14),
-                      shape: const StadiumBorder(),
-                      backgroundColor: AppColors.amber,
-                      foregroundColor: AppColors.amberInk,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          isLast ? l.onboardingStartButton : l.onboardingNextButton,
-                          style: AppTheme.text(
-                            size: 15,
-                            weight: FontWeight.w600,
-                            color: AppColors.amberInk,
-                          ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+                  child: Row(
+                    children: [
+                      Row(
+                        children: List.generate(3, (i) {
+                          final on = i == _currentPage;
+                          return AnimatedContainer(
+                            duration: 250.ms,
+                            margin: const EdgeInsets.only(right: 6),
+                            width: on ? 24 : 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: on ? AppColors.amber : AppColors.hairline,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          );
+                        }),
+                      ),
+                      const Spacer(),
+                      ElevatedButton(
+                        onPressed: _next,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.fromLTRB(24, 14, 22, 14),
+                          shape: const StadiumBorder(),
+                          backgroundColor: AppColors.amber,
+                          foregroundColor: AppColors.amberInk,
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 18,
-                          color: AppColors.amberInk,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isLast ? l.onboardingStartButton : l.onboardingNextButton,
+                              style: AppTheme.text(
+                                size: 15,
+                                weight: FontWeight.w600,
+                                color: AppColors.amberInk,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 18,
+                              color: AppColors.amberInk,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
